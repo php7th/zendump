@@ -12,7 +12,7 @@
   | obtain it through the world-wide-web, please send a note to          |
   | license@php.net so we can mail you a copy immediately.               |
   +----------------------------------------------------------------------+
-  | Author:                                                              |
+  | Author: Youlin Feng <fengyoulin@php7th.com>                          |
   +----------------------------------------------------------------------+
 */
 
@@ -44,6 +44,10 @@ extern zend_module_entry zendump_module_entry;
 # define ZEND_XLONG_FMT_SPEC PRIx32
 #endif
 
+#define ARRAY_LENGTH(a) (sizeof(a)/sizeof(a[0]))
+
+#define EX_OFFSET_TO_VAR_IDX(offset) ((zval*)((zend_long)offset - sizeof(zend_execute_data)) - (zval*)0)
+
 /*
   	Declare any global variables you may need between the BEGIN
 	and END macros here:
@@ -64,9 +68,11 @@ ZEND_END_MODULE_GLOBALS(zendump)
 ZEND_TSRMLS_CACHE_EXTERN()
 #endif
 
+#if ZEND_DEBUG
 void zendump_zval_type(zval *val);
+#endif
+
 void zendump_zval_dump(zval *val, int level);
-void zendump_array_dump(zend_array *arr, int level);
 
 void zendump_zend_op_array_dump(zend_op_array *op_array, int column_width);
 

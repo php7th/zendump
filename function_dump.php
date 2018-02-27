@@ -24,7 +24,25 @@ function func($p) {
 	echo $a[2];
 	zendump_vars();
 	zendump_literals();
-	zendump_opcodes();
+	// zendump_opcodes(50);
 }
 func(100);
+function func02(&$a, $b, $c) {
+	zendump_vars();
+	$d = $b;
+	if($c == $d) {
+		echo $d . $a;
+	}
+	$e = &$a;
+	$e = "here";
+	while($c) {
+		echo $c--;
+	}
+	zendump_vars();
+	zendump_literals();
+	zendump_opcodes();
+	return 2;
+}
+func02($b, $c, $d);
+zendump_function("func", 50);
 ?>

@@ -49,6 +49,6 @@ $s = "hello";
 zendump($s);
 zendump_vars();
 zendump_literals();
-zendump_symbol_table();
+zendump_symbols();
 zendump_opcodes();
 ?>

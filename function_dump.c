@@ -1,3 +1,23 @@
+/*
+  +----------------------------------------------------------------------+
+  | PHP Version 7                                                        |
+  +----------------------------------------------------------------------+
+  | Copyright (c) 1997-2018 The PHP Group                                |
+  +----------------------------------------------------------------------+
+  | This source file is subject to version 3.01 of the PHP license,      |
+  | that is bundled with this package in the file LICENSE, and is        |
+  | available through the world-wide-web at the following url:           |
+  | http://www.php.net/license/3_01.txt                                  |
+  | If you did not receive a copy of the PHP license and are unable to   |
+  | obtain it through the world-wide-web, please send a note to          |
+  | license@php.net so we can mail you a copy immediately.               |
+  +----------------------------------------------------------------------+
+  | Author: Youlin Feng <fengyoulin@php7th.com>                          |
+  +----------------------------------------------------------------------+
+*/
+
+/* $Id$ */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -7,7 +27,8 @@
 #include "ext/standard/info.h"
 #include "php_zendump.h"
 
-#define ARRAY_LENGTH(a) (sizeof(a)/sizeof(a[0]))
+#define IS_JMP_OP1_INS 1
+#define IS_JMP_OP2_INS 2
 
 void zendump_operand_value(zval *val, int column_width);
 void zendump_znode_op_dump(znode_op *op, zend_uchar type, zend_op_array *op_array, int column_width);
@@ -16,7 +37,7 @@ void zendump_zend_op_array_dump(zend_op_array *op_array, int column_width);
 
 void zendump_zend_op_array_dump(zend_op_array *op_array, int column_width)
 {
-	php_printf("op_array(\"%s\") at addr(0x" ZEND_XLONG_FMT ") num_args(%u) last_var(%u) T(%u)\n", op_array->function_name ? op_array->function_name->val : "", op_array, op_array->num_args, op_array->last_var, op_array->T);
+	php_printf("op_array(\"%s\") addr(0x" ZEND_XLONG_FMT ") args(%u) vars(%u) T(%u)\n", op_array->function_name ? op_array->function_name->val : "", op_array, op_array->num_args, op_array->last_var, op_array->T);
 	const char *columns[] = {"OPCODE", "OP1", "OP2", "RESULT"};
 	for(int idx = 0; idx < ARRAY_LENGTH(columns); ++idx) {
 		php_printf("%-*s", column_width, columns[idx]);
@@ -29,6 +50,7 @@ void zendump_zend_op_array_dump(zend_op_array *op_array, int column_width)
 
 void zendump_zend_op_dump(zend_op *opcode, zend_op_array *op_array, int column_width)
 {
+	uint32_t ins_type = 0;
 	const char *op_str = NULL;
 	switch(opcode->opcode) {
 		case 0: {
@@ -201,26 +223,32 @@ void zendump_zend_op_dump(zend_op *opcode, zend_op_array *op_array, int column_w
 		}
 		case 42: {
 			op_str = "ZEND_JMP";
+			ins_type = IS_JMP_OP1_INS;
 			break;
 		}
 		case 43: {
 			op_str = "ZEND_JMPZ";
+			ins_type = IS_JMP_OP2_INS;
 			break;
 		}
 		case 44: {
 			op_str = "ZEND_JMPNZ";
+			ins_type = IS_JMP_OP2_INS;
 			break;
 		}
 		case 45: {
 			op_str = "ZEND_JMPZNZ";
+			ins_type = IS_JMP_OP2_INS;
 			break;
 		}
 		case 46: {
 			op_str = "ZEND_JMPZ_EX";
+			ins_type = IS_JMP_OP2_INS;
 			break;
 		}
 		case 47: {
 			op_str = "ZEND_JMPNZ_EX";
+			ins_type = IS_JMP_OP2_INS;
 			break;
 		}
 		case 48: {
@@ -816,13 +844,21 @@ void zendump_zend_op_dump(zend_op *opcode, zend_op_array *op_array, int column_w
 			break;
 		}
 		default: {
-		    op_str = "UNKNOWN";
-		    break;
+			op_str = "UNKNOWN";
+			break;
 		}
 	}
 	php_printf("%-*s", column_width, op_str);
-	zendump_znode_op_dump(&opcode->op1, opcode->op1_type, op_array, column_width);
-	zendump_znode_op_dump(&opcode->op2, opcode->op2_type, op_array, column_width);
+	if(ins_type == IS_JMP_OP1_INS) {
+		php_printf("%-*d", column_width, OP_JMP_ADDR(opcode, opcode->op1) - opcode - 1);
+	} else {
+		zendump_znode_op_dump(&opcode->op1, opcode->op1_type, op_array, column_width);
+	}
+	if(ins_type == IS_JMP_OP2_INS) {
+		php_printf("%-*d", column_width, OP_JMP_ADDR(opcode, opcode->op2) - opcode - 1);
+	} else {
+		zendump_znode_op_dump(&opcode->op2, opcode->op2_type, op_array, column_width);
+	}
 	zendump_znode_op_dump(&opcode->result, opcode->result_type, op_array, column_width);
 	PUTS("\n");
 }
@@ -836,7 +872,7 @@ void zendump_znode_op_dump(znode_op *op, zend_uchar type, zend_op_array *op_arra
 			break;
 		}
 		case IS_CV: {
-			int index = (zval*)(op->var - sizeof(zend_execute_data)) - (zval*)0;
+			int index = EX_OFFSET_TO_VAR_IDX(op->var);
 			if(index < op_array->last_var) {
 				zend_string *var = op_array->vars[index];
 				php_printf("$%-*s", column_width - 1, var->val);
@@ -844,12 +880,12 @@ void zendump_znode_op_dump(znode_op *op, zend_uchar type, zend_op_array *op_arra
 			break;
 		}
 		case IS_TMP_VAR: {
-			int index = (zval*)(op->var - sizeof(zend_execute_data)) - (zval*)0;
+			int index = EX_OFFSET_TO_VAR_IDX(op->var);
 			php_printf("#tmp%-*d", column_width - 4, index);
 			break;
 		}
 		case IS_VAR: {
-			int index = (zval*)(op->var - sizeof(zend_execute_data)) - (zval*)0;
+			int index = EX_OFFSET_TO_VAR_IDX(op->var);
 			php_printf("#var%-*d", column_width - 4, index);
 			break;
 		}
@@ -880,7 +916,7 @@ void zendump_operand_value(zval *val, int column_width)
 			php_printf("%-*" ZEND_LONG_FMT_SPEC, column_width, Z_LVAL_P(val));
 			break;
 		case IS_DOUBLE:
-		    php_printf("%-*.*G", column_width, (int) EG(precision), Z_DVAL_P(val));
+			php_printf("%-*.*G", column_width, (int) EG(precision), Z_DVAL_P(val));
 			break;
 		case IS_STRING:
 			php_printf("\"%s\"", Z_STRVAL_P(val));
@@ -904,7 +940,7 @@ void zendump_operand_value(zval *val, int column_width)
 			zendump_operand_value(Z_INDIRECT_P(val), column_width);
 			break;
 		default:
-			php_printf("%-*s", column_width, "unknown");
+			php_printf("unknown:0x%-*" ZEND_XLONG_FMT_SPEC, column_width - 10, val);
 			break;
 	}
 }
