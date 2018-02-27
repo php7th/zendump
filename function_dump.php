@@ -45,4 +45,5 @@ function func02(&$a, $b, $c) {
 }
 func02($b, $c, $d);
 zendump_function("func", 50);
+none($c);
 ?>

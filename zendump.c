@@ -47,8 +47,7 @@ PHP_INI_END()
 #if ZEND_DEBUG
 void zendump_zval_type(zval *val)
 {
-	switch(Z_TYPE_P(val))
-	{
+	switch(Z_TYPE_P(val)) {
 		case IS_UNDEF:
 			PHPWRITE("undefined\n", 10);
 			break;
@@ -99,8 +98,7 @@ void zendump_zval_dump(zval *val, int level)
 	}
 again:
 	php_printf("zval(0x" ZEND_XLONG_FMT ") ", val);
-	switch(Z_TYPE_P(val))
-	{
+	switch(Z_TYPE_P(val)) {
 		case IS_UNDEF:
 			PHPWRITE(": undefined\n", 12);
 			break;
@@ -129,8 +127,9 @@ again:
 			uint32_t hashSize = -(int32_t)arr->nTableMask;
 			uint32_t hashUsed = 0;
 			uint32_t *hash = (uint32_t*)arr->arData - hashSize;
+			uint32_t idx;
 
-			for(uint32_t idx = 0; idx < hashSize; ++idx) {
+			for(idx = 0; idx < hashSize; ++idx) {
 				if(hash[idx] != HT_INVALID_IDX) {
 					++hashUsed;
 				}
@@ -181,6 +180,7 @@ PHP_FUNCTION(zendump)
 
 PHP_FUNCTION(zendump_symbols)
 {
+	int idx;
 	zend_execute_data *prev = EX(prev_execute_data);
 
 	if(!prev || !prev->symbol_table) {
@@ -189,7 +189,7 @@ PHP_FUNCTION(zendump_symbols)
 
 	php_printf("symbols(%d): {\n", prev->symbol_table->nNumOfElements);
 
-	for(int idx = 0; idx < prev->symbol_table->nNumUsed; ++idx) {
+	for(idx = 0; idx < prev->symbol_table->nNumUsed; ++idx) {
 		Bucket *bucket = prev->symbol_table->arData + idx;
 		if(Z_TYPE(bucket->val) != IS_UNDEF) {
 			if(bucket->key) {
@@ -206,21 +206,17 @@ PHP_FUNCTION(zendump_symbols)
 
 PHP_FUNCTION(zendump_vars)
 {
+	int idx;
 	zend_execute_data *prev = EX(prev_execute_data);
 
-	if(!prev || !prev->func) {
+	if(!prev || !prev->func || prev->func->type != ZEND_USER_FUNCTION) {
 		return;
 	}
 
-	zend_function *func = prev->func;
-	if(func->type != ZEND_USER_FUNCTION) {
-		return;
-	}
+	php_printf("vars(%d): {\n", prev->func->op_array.last_var);
 
-	php_printf("vars(%d): {\n", func->op_array.last_var);
-
-	for(int idx = 0; idx < func->op_array.last_var; ++idx) {
-		zend_string *var = func->op_array.vars[idx];
+	for(idx = 0; idx < prev->func->op_array.last_var; ++idx) {
+		zend_string *var = prev->func->op_array.vars[idx];
 		PUTS("  $");
 		PHPWRITE(var->val, var->len);
 		PUTS(" ->\n");
@@ -234,21 +230,16 @@ PHP_FUNCTION(zendump_vars)
 
 PHP_FUNCTION(zendump_literals)
 {
+	int idx;
 	zend_execute_data *prev = EX(prev_execute_data);
 
-	if(!prev || !prev->func) {
+	if(!prev || !prev->func || prev->func->type != ZEND_USER_FUNCTION) {
 		return;
 	}
 
-	zend_function *func = prev->func;
-	if(func->type != ZEND_USER_FUNCTION) {
-		return;
-	}
-
-	php_printf("literals(%d): {\n", func->op_array.last_literal);
-	for(int idx = 0; idx < func->op_array.last_literal; ++idx)
-	{
-		zval *val = func->op_array.literals + idx;
+	php_printf("literals(%d): {\n", prev->func->op_array.last_literal);
+	for(idx = 0; idx < prev->func->op_array.last_literal; ++idx) {
+		zval *val = prev->func->op_array.literals + idx;
 		zendump_zval_dump(val, 2);
 	}
 
@@ -265,20 +256,16 @@ PHP_FUNCTION(zendump_opcodes)
 		Z_PARAM_LONG(column_width)
 	ZEND_PARSE_PARAMETERS_END();
 
-	if(!prev || !prev->func) {
+	if(!prev || !prev->func || prev->func->type != ZEND_USER_FUNCTION) {
 		return;
 	}
 
-	zend_function *func = prev->func;
-	if(func->type != ZEND_USER_FUNCTION) {
-		return;
-	}
-
-	zendump_zend_op_array_dump(&func->op_array, column_width);
+	zendump_zend_op_array_dump(&prev->func->op_array, column_width);
 }
 
 PHP_FUNCTION(zendump_function)
 {
+	zval *val = NULL;
 	char *buf = NULL;
 	size_t buf_len;
 	zend_long column_width = 35;
@@ -289,7 +276,7 @@ PHP_FUNCTION(zendump_function)
 		Z_PARAM_LONG(column_width)
 	ZEND_PARSE_PARAMETERS_END();
 
-	zval *val = zend_hash_str_find(EG(function_table), buf, buf_len);
+	val = zend_hash_str_find(EG(function_table), buf, buf_len);
 	if(!val || !Z_FUNC_P(val) || Z_FUNC_P(val)->type != ZEND_USER_FUNCTION) {
 		return;
 	}

@@ -13,9 +13,9 @@ dnl [  --with-zendump             Include zendump support])
 
 dnl Otherwise use enable:
 
-dnl PHP_ARG_ENABLE(zendump, whether to enable zendump support,
-dnl Make sure that the comment is aligned:
-dnl [  --enable-zendump           Enable zendump support])
+PHP_ARG_ENABLE(zendump, whether to enable zendump support,
+Make sure that the comment is aligned:
+[  --enable-zendump           Enable zendump support])
 
 if test "$PHP_ZENDUMP" != "no"; then
   dnl Write more examples of tests here...

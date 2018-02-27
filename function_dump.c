@@ -37,21 +37,24 @@ void zendump_zend_op_array_dump(zend_op_array *op_array, int column_width);
 
 void zendump_zend_op_array_dump(zend_op_array *op_array, int column_width)
 {
-	php_printf("op_array(\"%s\") addr(0x" ZEND_XLONG_FMT ") args(%u) vars(%u) T(%u)\n", op_array->function_name ? op_array->function_name->val : "", op_array, op_array->num_args, op_array->last_var, op_array->T);
+	int idx;
 	const char *columns[] = {"OPCODE", "OP1", "OP2", "RESULT"};
-	for(int idx = 0; idx < ARRAY_LENGTH(columns); ++idx) {
+
+	php_printf("op_array(\"%s\") addr(0x" ZEND_XLONG_FMT ") args(%u) vars(%u) T(%u)\n", op_array->function_name ? op_array->function_name->val : "", op_array, op_array->num_args, op_array->last_var, op_array->T);
+	for(idx = 0; idx < ARRAY_LENGTH(columns); ++idx) {
 		php_printf("%-*s", column_width, columns[idx]);
 	}
 	PUTS("\n");
-	for(int idx = 0; idx < op_array->last; ++idx) {
+
+	for(idx = 0; idx < op_array->last; ++idx) {
 		zendump_zend_op_dump(op_array->opcodes + idx, op_array, column_width);
 	}
 }
 
 void zendump_zend_op_dump(zend_op *opcode, zend_op_array *op_array, int column_width)
 {
+	const char *op_str;
 	uint32_t ins_type = 0;
-	const char *op_str = NULL;
 	switch(opcode->opcode) {
 		case 0: {
 			op_str = "ZEND_NOP";
@@ -898,8 +901,7 @@ void zendump_znode_op_dump(znode_op *op, zend_uchar type, zend_op_array *op_arra
 
 void zendump_operand_value(zval *val, int column_width)
 {
-	switch(Z_TYPE_P(val))
-	{
+	switch(Z_TYPE_P(val)) {
 		case IS_UNDEF:
 			php_printf("%-*s", column_width, "undefined");
 			break;
