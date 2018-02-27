@@ -1,0 +1,13 @@
+// $Id$
+// vim:ft=javascript
+
+// If your extension references something external, use ARG_WITH
+// ARG_WITH("zendump", "for zendump support", "no");
+
+// Otherwise, use ARG_ENABLE
+// ARG_ENABLE("zendump", "enable zendump support", "no");
+
+if (PHP_ZENDUMP != "no") {
+	EXTENSION("zendump", "zendump.c function_dump.c", PHP_EXTNAME_SHARED, "/DZEND_ENABLE_STATIC_TSRMLS_CACHE=1");
+}
+

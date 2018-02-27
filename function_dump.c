@@ -1,0 +1,910 @@
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#include "php.h"
+#include "php_ini.h"
+#include "ext/standard/info.h"
+#include "php_zendump.h"
+
+#define ARRAY_LENGTH(a) (sizeof(a)/sizeof(a[0]))
+
+void zendump_operand_value(zval *val, int column_width);
+void zendump_znode_op_dump(znode_op *op, zend_uchar type, zend_op_array *op_array, int column_width);
+void zendump_zend_op_dump(zend_op *opcode, zend_op_array *op_array, int column_width);
+void zendump_zend_op_array_dump(zend_op_array *op_array, int column_width);
+
+void zendump_zend_op_array_dump(zend_op_array *op_array, int column_width)
+{
+	php_printf("op_array(\"%s\") at addr(0x" ZEND_XLONG_FMT ") num_args(%u) last_var(%u) T(%u)\n", op_array->function_name ? op_array->function_name->val : "", op_array, op_array->num_args, op_array->last_var, op_array->T);
+	const char *columns[] = {"OPCODE", "OP1", "OP2", "RESULT"};
+	for(int idx = 0; idx < ARRAY_LENGTH(columns); ++idx) {
+		php_printf("%-*s", column_width, columns[idx]);
+	}
+	PUTS("\n");
+	for(int idx = 0; idx < op_array->last; ++idx) {
+		zendump_zend_op_dump(op_array->opcodes + idx, op_array, column_width);
+	}
+}
+
+void zendump_zend_op_dump(zend_op *opcode, zend_op_array *op_array, int column_width)
+{
+	const char *op_str = NULL;
+	switch(opcode->opcode) {
+		case 0: {
+			op_str = "ZEND_NOP";
+			break;
+		}
+		case 1: {
+			op_str = "ZEND_ADD";
+			break;
+		}
+		case 2: {
+			op_str = "ZEND_SUB";
+			break;
+		}
+		case 3: {
+			op_str = "ZEND_MUL";
+			break;
+		}
+		case 4: {
+			op_str = "ZEND_DIV";
+			break;
+		}
+		case 5: {
+			op_str = "ZEND_MOD";
+			break;
+		}
+		case 6: {
+			op_str = "ZEND_SL";
+			break;
+		}
+		case 7: {
+			op_str = "ZEND_SR";
+			break;
+		}
+		case 8: {
+			op_str = "ZEND_CONCAT";
+			break;
+		}
+		case 9: {
+			op_str = "ZEND_BW_OR";
+			break;
+		}
+		case 10: {
+			op_str = "ZEND_BW_AND";
+			break;
+		}
+		case 11: {
+			op_str = "ZEND_BW_XOR";
+			break;
+		}
+		case 12: {
+			op_str = "ZEND_BW_NOT";
+			break;
+		}
+		case 13: {
+			op_str = "ZEND_BOOL_NOT";
+			break;
+		}
+		case 14: {
+			op_str = "ZEND_BOOL_XOR";
+			break;
+		}
+		case 15: {
+			op_str = "ZEND_IS_IDENTICAL";
+			break;
+		}
+		case 16: {
+			op_str = "ZEND_IS_NOT_IDENTICAL";
+			break;
+		}
+		case 17: {
+			op_str = "ZEND_IS_EQUAL";
+			break;
+		}
+		case 18: {
+			op_str = "ZEND_IS_NOT_EQUAL";
+			break;
+		}
+		case 19: {
+			op_str = "ZEND_IS_SMALLER";
+			break;
+		}
+		case 20: {
+			op_str = "ZEND_IS_SMALLER_OR_EQUAL";
+			break;
+		}
+		case 21: {
+			op_str = "ZEND_CAST";
+			break;
+		}
+		case 22: {
+			op_str = "ZEND_QM_ASSIGN";
+			break;
+		}
+		case 23: {
+			op_str = "ZEND_ASSIGN_ADD";
+			break;
+		}
+		case 24: {
+			op_str = "ZEND_ASSIGN_SUB";
+			break;
+		}
+		case 25: {
+			op_str = "ZEND_ASSIGN_MUL";
+			break;
+		}
+		case 26: {
+			op_str = "ZEND_ASSIGN_DIV";
+			break;
+		}
+		case 27: {
+			op_str = "ZEND_ASSIGN_MOD";
+			break;
+		}
+		case 28: {
+			op_str = "ZEND_ASSIGN_SL";
+			break;
+		}
+		case 29: {
+			op_str = "ZEND_ASSIGN_SR";
+			break;
+		}
+		case 30: {
+			op_str = "ZEND_ASSIGN_CONCAT";
+			break;
+		}
+		case 31: {
+			op_str = "ZEND_ASSIGN_BW_OR";
+			break;
+		}
+		case 32: {
+			op_str = "ZEND_ASSIGN_BW_AND";
+			break;
+		}
+		case 33: {
+			op_str = "ZEND_ASSIGN_BW_XOR";
+			break;
+		}
+		case 34: {
+			op_str = "ZEND_PRE_INC";
+			break;
+		}
+		case 35: {
+			op_str = "ZEND_PRE_DEC";
+			break;
+		}
+		case 36: {
+			op_str = "ZEND_POST_INC";
+			break;
+		}
+		case 37: {
+			op_str = "ZEND_POST_DEC";
+			break;
+		}
+		case 38: {
+			op_str = "ZEND_ASSIGN";
+			break;
+		}
+		case 39: {
+			op_str = "ZEND_ASSIGN_REF";
+			break;
+		}
+		case 40: {
+			op_str = "ZEND_ECHO";
+			break;
+		}
+		case 41: {
+			op_str = "ZEND_GENERATOR_CREATE";
+			break;
+		}
+		case 42: {
+			op_str = "ZEND_JMP";
+			break;
+		}
+		case 43: {
+			op_str = "ZEND_JMPZ";
+			break;
+		}
+		case 44: {
+			op_str = "ZEND_JMPNZ";
+			break;
+		}
+		case 45: {
+			op_str = "ZEND_JMPZNZ";
+			break;
+		}
+		case 46: {
+			op_str = "ZEND_JMPZ_EX";
+			break;
+		}
+		case 47: {
+			op_str = "ZEND_JMPNZ_EX";
+			break;
+		}
+		case 48: {
+			op_str = "ZEND_CASE";
+			break;
+		}
+		case 49: {
+			op_str = "ZEND_CHECK_VAR";
+			break;
+		}
+		case 50: {
+			op_str = "ZEND_SEND_VAR_NO_REF_EX";
+			break;
+		}
+		case 51: {
+			op_str = "ZEND_MAKE_REF";
+			break;
+		}
+		case 52: {
+			op_str = "ZEND_BOOL";
+			break;
+		}
+		case 53: {
+			op_str = "ZEND_FAST_CONCAT";
+			break;
+		}
+		case 54: {
+			op_str = "ZEND_ROPE_INIT";
+			break;
+		}
+		case 55: {
+			op_str = "ZEND_ROPE_ADD";
+			break;
+		}
+		case 56: {
+			op_str = "ZEND_ROPE_END";
+			break;
+		}
+		case 57: {
+			op_str = "ZEND_BEGIN_SILENCE";
+			break;
+		}
+		case 58: {
+			op_str = "ZEND_END_SILENCE";
+			break;
+		}
+		case 59: {
+			op_str = "ZEND_INIT_FCALL_BY_NAME";
+			break;
+		}
+		case 60: {
+			op_str = "ZEND_DO_FCALL";
+			break;
+		}
+		case 61: {
+			op_str = "ZEND_INIT_FCALL";
+			break;
+		}
+		case 62: {
+			op_str = "ZEND_RETURN";
+			break;
+		}
+		case 63: {
+			op_str = "ZEND_RECV";
+			break;
+		}
+		case 64: {
+			op_str = "ZEND_RECV_INIT";
+			break;
+		}
+		case 65: {
+			op_str = "ZEND_SEND_VAL";
+			break;
+		}
+		case 66: {
+			op_str = "ZEND_SEND_VAR_EX";
+			break;
+		}
+		case 67: {
+			op_str = "ZEND_SEND_REF";
+			break;
+		}
+		case 68: {
+			op_str = "ZEND_NEW";
+			break;
+		}
+		case 69: {
+			op_str = "ZEND_INIT_NS_FCALL_BY_NAME";
+			break;
+		}
+		case 70: {
+			op_str = "ZEND_FREE";
+			break;
+		}
+		case 71: {
+			op_str = "ZEND_INIT_ARRAY";
+			break;
+		}
+		case 72: {
+			op_str = "ZEND_ADD_ARRAY_ELEMENT";
+			break;
+		}
+		case 73: {
+			op_str = "ZEND_INCLUDE_OR_EVAL";
+			break;
+		}
+		case 74: {
+			op_str = "ZEND_UNSET_VAR";
+			break;
+		}
+		case 75: {
+			op_str = "ZEND_UNSET_DIM";
+			break;
+		}
+		case 76: {
+			op_str = "ZEND_UNSET_OBJ";
+			break;
+		}
+		case 77: {
+			op_str = "ZEND_FE_RESET_R";
+			break;
+		}
+		case 78: {
+			op_str = "ZEND_FE_FETCH_R";
+			break;
+		}
+		case 79: {
+			op_str = "ZEND_EXIT";
+			break;
+		}
+		case 80: {
+			op_str = "ZEND_FETCH_R";
+			break;
+		}
+		case 81: {
+			op_str = "ZEND_FETCH_DIM_R";
+			break;
+		}
+		case 82: {
+			op_str = "ZEND_FETCH_OBJ_R";
+			break;
+		}
+		case 83: {
+			op_str = "ZEND_FETCH_W";
+			break;
+		}
+		case 84: {
+			op_str = "ZEND_FETCH_DIM_W";
+			break;
+		}
+		case 85: {
+			op_str = "ZEND_FETCH_OBJ_W";
+			break;
+		}
+		case 86: {
+			op_str = "ZEND_FETCH_RW";
+			break;
+		}
+		case 87: {
+			op_str = "ZEND_FETCH_DIM_RW";
+			break;
+		}
+		case 88: {
+			op_str = "ZEND_FETCH_OBJ_RW";
+			break;
+		}
+		case 89: {
+			op_str = "ZEND_FETCH_IS";
+			break;
+		}
+		case 90: {
+			op_str = "ZEND_FETCH_DIM_IS";
+			break;
+		}
+		case 91: {
+			op_str = "ZEND_FETCH_OBJ_IS";
+			break;
+		}
+		case 92: {
+			op_str = "ZEND_FETCH_FUNC_ARG";
+			break;
+		}
+		case 93: {
+			op_str = "ZEND_FETCH_DIM_FUNC_ARG";
+			break;
+		}
+		case 94: {
+			op_str = "ZEND_FETCH_OBJ_FUNC_ARG";
+			break;
+		}
+		case 95: {
+			op_str = "ZEND_FETCH_UNSET";
+			break;
+		}
+		case 96: {
+			op_str = "ZEND_FETCH_DIM_UNSET";
+			break;
+		}
+		case 97: {
+			op_str = "ZEND_FETCH_OBJ_UNSET";
+			break;
+		}
+		case 98: {
+			op_str = "ZEND_FETCH_LIST";
+			break;
+		}
+		case 99: {
+			op_str = "ZEND_FETCH_CONSTANT";
+			break;
+		}
+		case 101: {
+			op_str = "ZEND_EXT_STMT";
+			break;
+		}
+		case 102: {
+			op_str = "ZEND_EXT_FCALL_BEGIN";
+			break;
+		}
+		case 103: {
+			op_str = "ZEND_EXT_FCALL_END";
+			break;
+		}
+		case 104: {
+			op_str = "ZEND_EXT_NOP";
+			break;
+		}
+		case 105: {
+			op_str = "ZEND_TICKS";
+			break;
+		}
+		case 106: {
+			op_str = "ZEND_SEND_VAR_NO_REF";
+			break;
+		}
+		case 107: {
+			op_str = "ZEND_CATCH";
+			break;
+		}
+		case 108: {
+			op_str = "ZEND_THROW";
+			break;
+		}
+		case 109: {
+			op_str = "ZEND_FETCH_CLASS";
+			break;
+		}
+		case 110: {
+			op_str = "ZEND_CLONE";
+			break;
+		}
+		case 111: {
+			op_str = "ZEND_RETURN_BY_REF";
+			break;
+		}
+		case 112: {
+			op_str = "ZEND_INIT_METHOD_CALL";
+			break;
+		}
+		case 113: {
+			op_str = "ZEND_INIT_STATIC_METHOD_CALL";
+			break;
+		}
+		case 114: {
+			op_str = "ZEND_ISSET_ISEMPTY_VAR";
+			break;
+		}
+		case 115: {
+			op_str = "ZEND_ISSET_ISEMPTY_DIM_OBJ";
+			break;
+		}
+		case 116: {
+			op_str = "ZEND_SEND_VAL_EX";
+			break;
+		}
+		case 117: {
+			op_str = "ZEND_SEND_VAR";
+			break;
+		}
+		case 118: {
+			op_str = "ZEND_INIT_USER_CALL";
+			break;
+		}
+		case 119: {
+			op_str = "ZEND_SEND_ARRAY";
+			break;
+		}
+		case 120: {
+			op_str = "ZEND_SEND_USER";
+			break;
+		}
+		case 121: {
+			op_str = "ZEND_STRLEN";
+			break;
+		}
+		case 122: {
+			op_str = "ZEND_DEFINED";
+			break;
+		}
+		case 123: {
+			op_str = "ZEND_TYPE_CHECK";
+			break;
+		}
+		case 124: {
+			op_str = "ZEND_VERIFY_RETURN_TYPE";
+			break;
+		}
+		case 125: {
+			op_str = "ZEND_FE_RESET_RW";
+			break;
+		}
+		case 126: {
+			op_str = "ZEND_FE_FETCH_RW";
+			break;
+		}
+		case 127: {
+			op_str = "ZEND_FE_FREE";
+			break;
+		}
+		case 128: {
+			op_str = "ZEND_INIT_DYNAMIC_CALL";
+			break;
+		}
+		case 129: {
+			op_str = "ZEND_DO_ICALL";
+			break;
+		}
+		case 130: {
+			op_str = "ZEND_DO_UCALL";
+			break;
+		}
+		case 131: {
+			op_str = "ZEND_DO_FCALL_BY_NAME";
+			break;
+		}
+		case 132: {
+			op_str = "ZEND_PRE_INC_OBJ";
+			break;
+		}
+		case 133: {
+			op_str = "ZEND_PRE_DEC_OBJ";
+			break;
+		}
+		case 134: {
+			op_str = "ZEND_POST_INC_OBJ";
+			break;
+		}
+		case 135: {
+			op_str = "ZEND_POST_DEC_OBJ";
+			break;
+		}
+		case 136: {
+			op_str = "ZEND_ASSIGN_OBJ";
+			break;
+		}
+		case 137: {
+			op_str = "ZEND_OP_DATA";
+			break;
+		}
+		case 138: {
+			op_str = "ZEND_INSTANCEOF";
+			break;
+		}
+		case 139: {
+			op_str = "ZEND_DECLARE_CLASS";
+			break;
+		}
+		case 140: {
+			op_str = "ZEND_DECLARE_INHERITED_CLASS";
+			break;
+		}
+		case 141: {
+			op_str = "ZEND_DECLARE_FUNCTION";
+			break;
+		}
+		case 142: {
+			op_str = "ZEND_YIELD_FROM";
+			break;
+		}
+		case 143: {
+			op_str = "ZEND_DECLARE_CONST";
+			break;
+		}
+		case 144: {
+			op_str = "ZEND_ADD_INTERFACE";
+			break;
+		}
+		case 145: {
+			op_str = "ZEND_DECLARE_INHERITED_CLASS_DELAYED";
+			break;
+		}
+		case 146: {
+			op_str = "ZEND_VERIFY_ABSTRACT_CLASS";
+			break;
+		}
+		case 147: {
+			op_str = "ZEND_ASSIGN_DIM";
+			break;
+		}
+		case 148: {
+			op_str = "ZEND_ISSET_ISEMPTY_PROP_OBJ";
+			break;
+		}
+		case 149: {
+			op_str = "ZEND_HANDLE_EXCEPTION";
+			break;
+		}
+		case 150: {
+			op_str = "ZEND_USER_OPCODE";
+			break;
+		}
+		case 151: {
+			op_str = "ZEND_ASSERT_CHECK";
+			break;
+		}
+		case 152: {
+			op_str = "ZEND_JMP_SET";
+			break;
+		}
+		case 153: {
+			op_str = "ZEND_DECLARE_LAMBDA_FUNCTION";
+			break;
+		}
+		case 154: {
+			op_str = "ZEND_ADD_TRAIT";
+			break;
+		}
+		case 155: {
+			op_str = "ZEND_BIND_TRAITS";
+			break;
+		}
+		case 156: {
+			op_str = "ZEND_SEPARATE";
+			break;
+		}
+		case 157: {
+			op_str = "ZEND_FETCH_CLASS_NAME";
+			break;
+		}
+		case 158: {
+			op_str = "ZEND_CALL_TRAMPOLINE";
+			break;
+		}
+		case 159: {
+			op_str = "ZEND_DISCARD_EXCEPTION";
+			break;
+		}
+		case 160: {
+			op_str = "ZEND_YIELD";
+			break;
+		}
+		case 161: {
+			op_str = "ZEND_GENERATOR_RETURN";
+			break;
+		}
+		case 162: {
+			op_str = "ZEND_FAST_CALL";
+			break;
+		}
+		case 163: {
+			op_str = "ZEND_FAST_RET";
+			break;
+		}
+		case 164: {
+			op_str = "ZEND_RECV_VARIADIC";
+			break;
+		}
+		case 165: {
+			op_str = "ZEND_SEND_UNPACK";
+			break;
+		}
+		case 166: {
+			op_str = "ZEND_POW";
+			break;
+		}
+		case 167: {
+			op_str = "ZEND_ASSIGN_POW";
+			break;
+		}
+		case 168: {
+			op_str = "ZEND_BIND_GLOBAL";
+			break;
+		}
+		case 169: {
+			op_str = "ZEND_COALESCE";
+			break;
+		}
+		case 170: {
+			op_str = "ZEND_SPACESHIP";
+			break;
+		}
+		case 171: {
+			op_str = "ZEND_DECLARE_ANON_CLASS";
+			break;
+		}
+		case 172: {
+			op_str = "ZEND_DECLARE_ANON_INHERITED_CLASS";
+			break;
+		}
+		case 173: {
+			op_str = "ZEND_FETCH_STATIC_PROP_R";
+			break;
+		}
+		case 174: {
+			op_str = "ZEND_FETCH_STATIC_PROP_W";
+			break;
+		}
+		case 175: {
+			op_str = "ZEND_FETCH_STATIC_PROP_RW";
+			break;
+		}
+		case 176: {
+			op_str = "ZEND_FETCH_STATIC_PROP_IS";
+			break;
+		}
+		case 177: {
+			op_str = "ZEND_FETCH_STATIC_PROP_FUNC_ARG";
+			break;
+		}
+		case 178: {
+			op_str = "ZEND_FETCH_STATIC_PROP_UNSET";
+			break;
+		}
+		case 179: {
+			op_str = "ZEND_UNSET_STATIC_PROP";
+			break;
+		}
+		case 180: {
+			op_str = "ZEND_ISSET_ISEMPTY_STATIC_PROP";
+			break;
+		}
+		case 181: {
+			op_str = "ZEND_FETCH_CLASS_CONSTANT";
+			break;
+		}
+		case 182: {
+			op_str = "ZEND_BIND_LEXICAL";
+			break;
+		}
+		case 183: {
+			op_str = "ZEND_BIND_STATIC";
+			break;
+		}
+		case 184: {
+			op_str = "ZEND_FETCH_THIS";
+			break;
+		}
+		case 186: {
+			op_str = "ZEND_ISSET_ISEMPTY_THIS";
+			break;
+		}
+		case 187: {
+			op_str = "ZEND_SWITCH_LONG";
+			break;
+		}
+		case 188: {
+			op_str = "ZEND_SWITCH_STRING";
+			break;
+		}
+		case 189: {
+			op_str = "ZEND_IN_ARRAY";
+			break;
+		}
+		case 190: {
+			op_str = "ZEND_COUNT";
+			break;
+		}
+		case 191: {
+			op_str = "ZEND_GET_CLASS";
+			break;
+		}
+		case 192: {
+			op_str = "ZEND_GET_CALLED_CLASS";
+			break;
+		}
+		case 193: {
+			op_str = "ZEND_GET_TYPE";
+			break;
+		}
+		case 194: {
+			op_str = "ZEND_FUNC_NUM_ARGS";
+			break;
+		}
+		case 195: {
+			op_str = "ZEND_FUNC_GET_ARGS";
+			break;
+		}
+		case 196: {
+			op_str = "ZEND_UNSET_CV";
+			break;
+		}
+		case 197: {
+			op_str = "ZEND_ISSET_ISEMPTY_CV";
+			break;
+		}
+		default: {
+		    op_str = "UNKNOWN";
+		    break;
+		}
+	}
+	php_printf("%-*s", column_width, op_str);
+	zendump_znode_op_dump(&opcode->op1, opcode->op1_type, op_array, column_width);
+	zendump_znode_op_dump(&opcode->op2, opcode->op2_type, op_array, column_width);
+	zendump_znode_op_dump(&opcode->result, opcode->result_type, op_array, column_width);
+	PUTS("\n");
+}
+
+void zendump_znode_op_dump(znode_op *op, zend_uchar type, zend_op_array *op_array, int column_width)
+{
+	switch(type) {
+		case IS_CONST: {
+			zval *val = (zval*)((char*)op_array->literals + op->constant);
+			zendump_operand_value(val, column_width);
+			break;
+		}
+		case IS_CV: {
+			int index = (zval*)(op->var - sizeof(zend_execute_data)) - (zval*)0;
+			if(index < op_array->last_var) {
+				zend_string *var = op_array->vars[index];
+				php_printf("$%-*s", column_width - 1, var->val);
+			}
+			break;
+		}
+		case IS_TMP_VAR: {
+			int index = (zval*)(op->var - sizeof(zend_execute_data)) - (zval*)0;
+			php_printf("#tmp%-*d", column_width - 4, index);
+			break;
+		}
+		case IS_VAR: {
+			int index = (zval*)(op->var - sizeof(zend_execute_data)) - (zval*)0;
+			php_printf("#var%-*d", column_width - 4, index);
+			break;
+		}
+		case IS_UNUSED: {
+			php_printf("%*c", column_width, ' ');
+			break;
+		}
+	}
+}
+
+void zendump_operand_value(zval *val, int column_width)
+{
+	switch(Z_TYPE_P(val))
+	{
+		case IS_UNDEF:
+			php_printf("%-*s", column_width, "undefined");
+			break;
+		case IS_NULL:
+			php_printf("%-*s", column_width, "null");
+			break;
+		case IS_FALSE:
+			php_printf("%-*s", column_width, "false");
+			break;
+		case IS_TRUE:
+			php_printf("%-*s", column_width, "true");
+			break;
+		case IS_LONG:
+			php_printf("%-*" ZEND_LONG_FMT_SPEC, column_width, Z_LVAL_P(val));
+			break;
+		case IS_DOUBLE:
+		    php_printf("%-*.*G", column_width, (int) EG(precision), Z_DVAL_P(val));
+			break;
+		case IS_STRING:
+			php_printf("\"%s\"", Z_STRVAL_P(val));
+			if(column_width > Z_STRLEN_P(val) + 2) {
+				php_printf("%*c", column_width - 2 - Z_STRLEN_P(val), ' ');
+			}
+			break;
+		case IS_ARRAY:
+			php_printf("array:0x%-*" ZEND_XLONG_FMT_SPEC, column_width - 8, Z_ARRVAL_P(val));
+			break;
+		case IS_OBJECT:
+			php_printf("object:0x%-*" ZEND_XLONG_FMT_SPEC, column_width - 9, Z_OBJ_P(val));
+			break;
+		case IS_RESOURCE:
+			php_printf("resource:0x%-*" ZEND_XLONG_FMT_SPEC, column_width - 11, Z_RES_P(val));
+			break;
+		case IS_REFERENCE:
+			php_printf("reference:0x%-*" ZEND_XLONG_FMT_SPEC, column_width - 12, Z_REF_P(val));
+			break;
+		case IS_INDIRECT:
+			zendump_operand_value(Z_INDIRECT_P(val), column_width);
+			break;
+		default:
+			php_printf("%-*s", column_width, "unknown");
+			break;
+	}
+}
