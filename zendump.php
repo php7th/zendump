@@ -1,6 +1,9 @@
 <?php
 $br = (php_sapi_name() == "cli")? "":"<br>";
 
+$abnormal = "\0xyz";
+${$abnormal} = 2;
+
 if(!extension_loaded('zendump')) {
 	dl('zendump.' . PHP_SHLIB_SUFFIX);
 }
@@ -28,6 +31,7 @@ zendump($a);
 unset($a['hello']);
 zendump($a);
 $a[] = ['ok'];
+$a["\0abc"] = ['special'];
 zendump($a);
 $b = 9;
 zendump($b);

@@ -182,7 +182,9 @@ void zendump_zend_array_dump(zend_array *arr, int level)
 		Bucket *bucket = arr->arData + idx;
 		if(Z_TYPE(bucket->val) != IS_UNDEF) {
 			if(bucket->key) {
-				php_printf("%*c\"%s\" =>\n", level, ' ', bucket->key->val);
+				php_printf("%*c\"", level, ' ');
+				PHPWRITE(ZSTR_VAL(bucket->key), ZSTR_LEN(bucket->key));
+				PUTS("\" =>\n");
 			} else {
 				php_printf("%*c[%d] =>\n", level, ' ', bucket->h);
 			}
@@ -323,7 +325,7 @@ PHP_FUNCTION(zendump_function)
 	if(ZEND_USER_CODE(Z_FUNC_P(val)->type)) {
 		zendump_zend_op_array_dump(&Z_FUNC_P(val)->op_array, column_width);
 	} else if(Z_FUNC_P(val)->type == ZEND_INTERNAL_FUNCTION) {
-		php_printf("internal_function(\"%s\") handler(0x" ZEND_XLONG_FMT ")", Z_FUNC_P(val)->internal_function.function_name ? Z_FUNC_P(val)->internal_function.function_name->val : "", Z_FUNC_P(val)->internal_function.handler);
+		php_printf("internal_function(\"%s\") handler(0x" ZEND_XLONG_FMT ")", Z_FUNC_P(val)->internal_function.function_name ? ZSTR_VAL(Z_FUNC_P(val)->internal_function.function_name) : "", Z_FUNC_P(val)->internal_function.handler);
 		if(Z_FUNC_P(val)->internal_function.module) {
 			php_printf(" module(%d,\"%s\",\"%s\")", Z_FUNC_P(val)->internal_function.module->module_number, Z_FUNC_P(val)->internal_function.module->name, Z_FUNC_P(val)->internal_function.module->version);
 		}

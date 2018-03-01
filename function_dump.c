@@ -40,9 +40,9 @@ void zendump_zend_op_array_dump(zend_op_array *op_array, int column_width)
 	int idx;
 	const char *columns[] = {"OPCODE", "OP1", "OP2", "RESULT"};
 
-	php_printf("op_array(\"%s\") addr(0x" ZEND_XLONG_FMT ") args(%u) vars(%u) T(%u)", op_array->function_name ? op_array->function_name->val : "", op_array, op_array->num_args, op_array->last_var, op_array->T);
+	php_printf("op_array(\"%s\") addr(0x" ZEND_XLONG_FMT ") args(%u) vars(%u) T(%u)", op_array->function_name ? ZSTR_VAL(op_array->function_name) : "", op_array, op_array->num_args, op_array->last_var, op_array->T);
 	if(op_array->filename) {
-		php_printf(" filename(%s) line(%u,%u)\n", op_array->filename->val, op_array->line_start, op_array->line_end);
+		php_printf(" filename(%s) line(%u,%u)\n", ZSTR_VAL(op_array->filename), op_array->line_start, op_array->line_end);
 	}
 
 	for(idx = 0; idx < ARRAY_LENGTH(columns); ++idx) {
@@ -882,7 +882,7 @@ void zendump_znode_op_dump(znode_op *op, zend_uchar type, zend_op_array *op_arra
 			int index = EX_OFFSET_TO_VAR_IDX(op->var);
 			if(index < op_array->last_var) {
 				zend_string *var = op_array->vars[index];
-				php_printf("$%-*s", column_width - 1, var->val);
+				php_printf("$%-*s", column_width - 1, ZSTR_VAL(var));
 			}
 			break;
 		}
@@ -925,7 +925,9 @@ void zendump_operand_value(zval *val, int column_width)
 			php_printf("%-*.*G", column_width, (int) EG(precision), Z_DVAL_P(val));
 			break;
 		case IS_STRING:
-			php_printf("\"%s\"", Z_STRVAL_P(val));
+			PUTS("\"");
+			PHPWRITE(Z_STRVAL_P(val), Z_STRLEN_P(val));
+			PUTS("\"");
 			if(column_width > Z_STRLEN_P(val) + 2) {
 				php_printf("%*c", column_width - 2 - Z_STRLEN_P(val), ' ');
 			}
