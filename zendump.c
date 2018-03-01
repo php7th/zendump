@@ -378,7 +378,7 @@ PHP_FUNCTION(zendump_function)
 	} else if(Z_FUNC_P(val)->type == ZEND_INTERNAL_FUNCTION) {
 		php_printf("internal_function(\"%s\") handler(0x" ZEND_XLONG_FMT ")", Z_FUNC_P(val)->internal_function.function_name ? ZSTR_VAL(Z_FUNC_P(val)->internal_function.function_name) : "", Z_FUNC_P(val)->internal_function.handler);
 		if(Z_FUNC_P(val)->internal_function.module) {
-			php_printf(" module(%d,\"%s\",\"%s\")", Z_FUNC_P(val)->internal_function.module->module_number, Z_FUNC_P(val)->internal_function.module->name, Z_FUNC_P(val)->internal_function.module->version);
+			php_printf(" module(%d,\"%s\",\"%s\")\n", Z_FUNC_P(val)->internal_function.module->module_number, Z_FUNC_P(val)->internal_function.module->name, Z_FUNC_P(val)->internal_function.module->version);
 		}
 	}
 }

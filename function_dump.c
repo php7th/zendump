@@ -29,6 +29,8 @@
 
 #define IS_JMP_OP1_INS 1
 #define IS_JMP_OP2_INS 2
+#define IS_RECV_INS    3
+#define IS_SEND_EX_INS 4
 
 void zendump_operand_value(zval *val, int column_width);
 void zendump_znode_op_dump(znode_op *op, zend_uchar type, zend_op_array *op_array, int column_width);
@@ -59,6 +61,7 @@ void zendump_zend_op_dump(zend_op *opcode, zend_op_array *op_array, int column_w
 {
 	const char *op_str;
 	uint32_t ins_type = 0;
+	const int show_internal_operand = 0;
 	switch(opcode->opcode) {
 		case 0: {
 			op_str = "ZEND_NOP";
@@ -268,6 +271,7 @@ void zendump_zend_op_dump(zend_op *opcode, zend_op_array *op_array, int column_w
 		}
 		case 50: {
 			op_str = "ZEND_SEND_VAR_NO_REF_EX";
+			ins_type = IS_SEND_EX_INS;
 			break;
 		}
 		case 51: {
@@ -320,10 +324,12 @@ void zendump_zend_op_dump(zend_op *opcode, zend_op_array *op_array, int column_w
 		}
 		case 63: {
 			op_str = "ZEND_RECV";
+			ins_type = IS_RECV_INS;
 			break;
 		}
 		case 64: {
 			op_str = "ZEND_RECV_INIT";
+			ins_type = IS_RECV_INS;
 			break;
 		}
 		case 65: {
@@ -332,6 +338,7 @@ void zendump_zend_op_dump(zend_op *opcode, zend_op_array *op_array, int column_w
 		}
 		case 66: {
 			op_str = "ZEND_SEND_VAR_EX";
+			ins_type = IS_SEND_EX_INS;
 			break;
 		}
 		case 67: {
@@ -528,6 +535,7 @@ void zendump_zend_op_dump(zend_op *opcode, zend_op_array *op_array, int column_w
 		}
 		case 116: {
 			op_str = "ZEND_SEND_VAL_EX";
+			ins_type = IS_SEND_EX_INS;
 			break;
 		}
 		case 117: {
@@ -720,6 +728,7 @@ void zendump_zend_op_dump(zend_op *opcode, zend_op_array *op_array, int column_w
 		}
 		case 164: {
 			op_str = "ZEND_RECV_VARIADIC";
+			ins_type = IS_RECV_INS;
 			break;
 		}
 		case 165: {
@@ -856,16 +865,23 @@ void zendump_zend_op_dump(zend_op *opcode, zend_op_array *op_array, int column_w
 		}
 	}
 	php_printf("%-*s", column_width, op_str);
+
 	if(ins_type == IS_JMP_OP1_INS) {
 		php_printf("%-*d", column_width, OP_JMP_ADDR(opcode, opcode->op1) - opcode - 1);
+	} else if(show_internal_operand && ins_type == IS_RECV_INS) {
+		php_printf("%-*d", column_width, opcode->op1.num);
 	} else {
 		zendump_znode_op_dump(&opcode->op1, opcode->op1_type, op_array, column_width);
 	}
+
 	if(ins_type == IS_JMP_OP2_INS) {
 		php_printf("%-*d", column_width, OP_JMP_ADDR(opcode, opcode->op2) - opcode - 1);
+	} else if(show_internal_operand && ins_type == IS_SEND_EX_INS) {
+		php_printf("%-*d", column_width, opcode->op2.num);
 	} else {
 		zendump_znode_op_dump(&opcode->op2, opcode->op2_type, op_array, column_width);
 	}
+
 	zendump_znode_op_dump(&opcode->result, opcode->result_type, op_array, column_width);
 	PUTS("\n");
 }

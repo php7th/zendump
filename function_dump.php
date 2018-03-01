@@ -39,6 +39,7 @@ function func02(&$a, $b, $c) {
 	while($c) {
 		echo $c--;
 	}
+	eval('function func03(&$a, $b){$a += $b;return $a;}');
 	zendump_args();
 	zendump_vars();
 	zendump_literals();
@@ -47,8 +48,17 @@ function func02(&$a, $b, $c) {
 }
 func02($b, $c, $d, 4, 5, 6, '7', 'eight', 9.0);
 zendump_function("func", 50);
-eval('function func03(){return 0;}');
 zendump_function("func03", 50);
 zendump_function("zendump_function");
-none($c);
+func03($d, 200);
+zendump_vars();
+function func04(array $a, bool $b, int $c) {
+	$a[] = [$b, $c];
+	$a[2] = 0;
+	return $a;
+}
+zendump_function('func04');
+func04([], '', 3);
+eval('function func05(array $a, bool $b, int $c) {$a[] = [$b, $c];zendump_vars();return $a;}');
+func05([], '', 0);
 ?>
