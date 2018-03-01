@@ -47,20 +47,28 @@ PHP_INI_END()
 zend_string *unescape_zend_string(zend_string *org, int persistent)
 {
 	zend_string *str = org;
+	int first = -1;
 	int nrt0 = 0;
 	int idx;
 	for(idx = 0; idx < ZSTR_LEN(str); ++idx) {
 		if('\n' == ZSTR_VAL(str)[idx] || '\r' == ZSTR_VAL(str)[idx] || '\t' == ZSTR_VAL(str)[idx] || '\0' == ZSTR_VAL(str)[idx]) {
+			if(first == -1) {
+				first = idx;
+			}
 			++nrt0;
 		}
 	}
 	if(nrt0) {
-		str = zend_string_dup(str, 0);
-		str = zend_string_extend(str, ZSTR_LEN(str), 0);
+		if(first > 0) {
+			str = zend_string_dup(str, persistent);
+			str = zend_string_extend(str, ZSTR_LEN(str) + nrt0, persistent);
+		} else {
+			str = zend_string_alloc(ZSTR_LEN(str) + nrt0, persistent);
+		}
 		ZSTR_LEN(str) = ZSTR_LEN(org) + nrt0;
 		const char *src = ZSTR_VAL(org);
-		char *dst = ZSTR_VAL(str);
-		for(idx = 0; idx < ZSTR_LEN(org); ++idx) {
+		char *dst = ZSTR_VAL(str) + first;
+		for(idx = first; idx < ZSTR_LEN(org); ++idx) {
 			if('\n' == src[idx]) {
 				*dst++ = '\\';
 				*dst++ = 'n';
@@ -77,6 +85,7 @@ zend_string *unescape_zend_string(zend_string *org, int persistent)
 				*dst++ = src[idx];
 			}
 		}
+		*dst = '\0';
 	}
 	return str;
 }
