@@ -40,7 +40,11 @@ void zendump_zend_op_array_dump(zend_op_array *op_array, int column_width)
 	int idx;
 	const char *columns[] = {"OPCODE", "OP1", "OP2", "RESULT"};
 
-	php_printf("op_array(\"%s\") addr(0x" ZEND_XLONG_FMT ") args(%u) vars(%u) T(%u)\n", op_array->function_name ? op_array->function_name->val : "", op_array, op_array->num_args, op_array->last_var, op_array->T);
+	php_printf("op_array(\"%s\") addr(0x" ZEND_XLONG_FMT ") args(%u) vars(%u) T(%u)", op_array->function_name ? op_array->function_name->val : "", op_array, op_array->num_args, op_array->last_var, op_array->T);
+	if(op_array->filename) {
+		php_printf(" filename(%s) line(%u,%u)\n", op_array->filename->val, op_array->line_start, op_array->line_end);
+	}
+
 	for(idx = 0; idx < ARRAY_LENGTH(columns); ++idx) {
 		php_printf("%-*s", column_width, columns[idx]);
 	}
@@ -883,12 +887,12 @@ void zendump_znode_op_dump(znode_op *op, zend_uchar type, zend_op_array *op_arra
 			break;
 		}
 		case IS_TMP_VAR: {
-			int index = EX_OFFSET_TO_VAR_IDX(op->var);
+			int index = EX_OFFSET_TO_VAR_IDX(op->var) - op_array->last_var;
 			php_printf("#tmp%-*d", column_width - 4, index);
 			break;
 		}
 		case IS_VAR: {
-			int index = EX_OFFSET_TO_VAR_IDX(op->var);
+			int index = EX_OFFSET_TO_VAR_IDX(op->var) - op_array->last_var;
 			php_printf("#var%-*d", column_width - 4, index);
 			break;
 		}

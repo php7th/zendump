@@ -47,6 +47,7 @@ zendump($f);
 
 $s = "hello";
 zendump($s);
+zendump_args();
 zendump_vars();
 zendump_literals();
 zendump_symbols();

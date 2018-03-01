@@ -18,10 +18,11 @@ function func($p) {
 	$l = 3.14159265;
 	$s = "hello function!";
 	$a = [$n, $l, $s];
-	if("" == $s) {
-		echo "equal!";
+	if("" != $s) {
+		echo "not equal!";
 	}
 	echo $a[2];
+	zendump_args();
 	zendump_vars();
 	zendump_literals();
 	// zendump_opcodes(50);
@@ -38,12 +39,16 @@ function func02(&$a, $b, $c) {
 	while($c) {
 		echo $c--;
 	}
+	zendump_args();
 	zendump_vars();
 	zendump_literals();
 	zendump_opcodes();
 	return 2;
 }
-func02($b, $c, $d);
+func02($b, $c, $d, 4, 5, 6, '7', 'eight', 9.0);
 zendump_function("func", 50);
+eval('function func03(){return 0;}');
+zendump_function("func03", 50);
+zendump_function("zendump_function");
 none($c);
 ?>

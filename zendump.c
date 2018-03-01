@@ -136,6 +136,18 @@ again:
 			}
 
 			php_printf("-> array(%u) addr(0x" ZEND_XLONG_FMT ") refcount(%u) hash(%u,%u) bucket(%u,%u) data(0x" ZEND_XLONG_FMT ")\n", arr->nNumOfElements, arr, arr->gc.refcount, hashSize, hashUsed, arr->nTableSize, arr->nNumUsed, arr->arData);
+			if(arr->nNumOfElements == 0) {
+				break;
+			}
+			if(level > 0) {
+				php_printf("%*c", level, ' ');
+			}
+			PUTS("{\n");
+			zendump_zend_array_dump(arr, level + INDENT_SIZE);
+			if(level > 0) {
+				php_printf("%*c", level, ' ');
+			}
+			PUTS("}\n");
 			break;
 		}
 		case IS_OBJECT: {
@@ -163,6 +175,22 @@ again:
 	}
 }
 
+void zendump_zend_array_dump(zend_array *arr, int level)
+{
+	int idx;
+	for(idx = 0; idx < arr->nNumUsed; ++idx) {
+		Bucket *bucket = arr->arData + idx;
+		if(Z_TYPE(bucket->val) != IS_UNDEF) {
+			if(bucket->key) {
+				php_printf("%*c\"%s\" =>\n", level, ' ', bucket->key->val);
+			} else {
+				php_printf("%*c[%d] =>\n", level, ' ', bucket->h);
+			}
+			zendump_zval_dump(&bucket->val, level);
+		}
+	}
+}
+
 PHP_FUNCTION(zendump)
 {
 	zval *args;
@@ -180,7 +208,6 @@ PHP_FUNCTION(zendump)
 
 PHP_FUNCTION(zendump_symbols)
 {
-	int idx;
 	zend_execute_data *prev = EX(prev_execute_data);
 
 	if(!prev || !prev->symbol_table) {
@@ -188,19 +215,7 @@ PHP_FUNCTION(zendump_symbols)
 	}
 
 	php_printf("symbols(%d): {\n", prev->symbol_table->nNumOfElements);
-
-	for(idx = 0; idx < prev->symbol_table->nNumUsed; ++idx) {
-		Bucket *bucket = prev->symbol_table->arData + idx;
-		if(Z_TYPE(bucket->val) != IS_UNDEF) {
-			if(bucket->key) {
-				php_printf("  \"%s\" =>\n", bucket->key->val);
-			} else {
-				php_printf("  [%d] =>\n", bucket->h);
-			}
-			zendump_zval_dump(&bucket->val, 2);
-		}
-	}
-
+	zendump_zend_array_dump(prev->symbol_table, INDENT_SIZE);
 	PUTS("}\n");
 }
 
@@ -217,12 +232,36 @@ PHP_FUNCTION(zendump_vars)
 
 	for(idx = 0; idx < prev->func->op_array.last_var; ++idx) {
 		zend_string *var = prev->func->op_array.vars[idx];
-		PUTS("  $");
+		php_printf("%*c$", INDENT_SIZE, ' ');
 		PHPWRITE(var->val, var->len);
 		PUTS(" ->\n");
 
 		zval *val = (zval*)(prev + 1) + idx;
-		zendump_zval_dump(val, 2);
+		zendump_zval_dump(val, INDENT_SIZE);
+	}
+
+	PUTS("}\n");
+}
+
+PHP_FUNCTION(zendump_args)
+{
+	int idx;
+	zend_execute_data *prev = EX(prev_execute_data);
+
+	if(!prev || !prev->func || prev->func->type != ZEND_USER_FUNCTION) {
+		return;
+	}
+
+	php_printf("args(%d): {\n", ZEND_CALL_NUM_ARGS(prev));
+
+	for(idx = 0; idx < prev->func->op_array.num_args; ++idx) {
+		zval *val = (zval*)(prev + 1) + idx;
+		zendump_zval_dump(val, INDENT_SIZE);
+	}
+
+	for(idx = 0; idx < ZEND_CALL_NUM_ARGS(prev) - prev->func->op_array.num_args; ++idx) {
+		zval *val = (zval*)(prev + 1) + prev->func->op_array.last_var + prev->func->op_array.T + idx;
+		zendump_zval_dump(val, INDENT_SIZE);
 	}
 
 	PUTS("}\n");
@@ -240,7 +279,7 @@ PHP_FUNCTION(zendump_literals)
 	php_printf("literals(%d): {\n", prev->func->op_array.last_literal);
 	for(idx = 0; idx < prev->func->op_array.last_literal; ++idx) {
 		zval *val = prev->func->op_array.literals + idx;
-		zendump_zval_dump(val, 2);
+		zendump_zval_dump(val, INDENT_SIZE);
 	}
 
 	PUTS("}\n");
@@ -277,11 +316,18 @@ PHP_FUNCTION(zendump_function)
 	ZEND_PARSE_PARAMETERS_END();
 
 	val = zend_hash_str_find(EG(function_table), buf, buf_len);
-	if(!val || !Z_FUNC_P(val) || Z_FUNC_P(val)->type != ZEND_USER_FUNCTION) {
+	if(!val || !Z_FUNC_P(val)) {
 		return;
 	}
 
-	zendump_zend_op_array_dump(&Z_FUNC_P(val)->op_array, column_width);
+	if(ZEND_USER_CODE(Z_FUNC_P(val)->type)) {
+		zendump_zend_op_array_dump(&Z_FUNC_P(val)->op_array, column_width);
+	} else if(Z_FUNC_P(val)->type == ZEND_INTERNAL_FUNCTION) {
+		php_printf("internal_function(\"%s\") handler(0x" ZEND_XLONG_FMT ")", Z_FUNC_P(val)->internal_function.function_name ? Z_FUNC_P(val)->internal_function.function_name->val : "", Z_FUNC_P(val)->internal_function.handler);
+		if(Z_FUNC_P(val)->internal_function.module) {
+			php_printf(" module(%d,\"%s\",\"%s\")", Z_FUNC_P(val)->internal_function.module->module_number, Z_FUNC_P(val)->internal_function.module->name, Z_FUNC_P(val)->internal_function.module->version);
+		}
+	}
 }
 
 /* {{{ php_zendump_init_globals
@@ -359,6 +405,9 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO(arginfo_zendump_vars, 0)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO(arginfo_zendump_args, 0)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO(arginfo_zendump_symbols, 0)
 ZEND_END_ARG_INFO()
 
@@ -381,6 +430,7 @@ ZEND_END_ARG_INFO()
 const zend_function_entry zendump_functions[] = {
 	PHP_FE(zendump,          arginfo_zendump)
 	PHP_FE(zendump_vars,     arginfo_zendump_vars)
+	PHP_FE(zendump_args,     arginfo_zendump_args)
 	PHP_FE(zendump_symbols,  arginfo_zendump_symbols)
 	PHP_FE(zendump_literals, arginfo_zendump_literals)
 	PHP_FE(zendump_opcodes,  arginfo_zendump_opcodes)

@@ -44,9 +44,22 @@ extern zend_module_entry zendump_module_entry;
 # define ZEND_XLONG_FMT_SPEC PRIx32
 #endif
 
+/*
+ * For PHP 7.0
+ */
+#if !defined(ZEND_XLONG_FMT)
+# ifdef ZEND_ENABLE_ZVAL_LONG64
+#  define ZEND_XLONG_FMT "%" PRIx64
+# else
+#  define ZEND_XLONG_FMT "%" PRIx32
+# endif
+#endif
+
 #define ARRAY_LENGTH(a) (sizeof(a)/sizeof(a[0]))
 
 #define EX_OFFSET_TO_VAR_IDX(offset) ((zval*)((zend_long)offset - sizeof(zend_execute_data)) - (zval*)0)
+
+#define INDENT_SIZE 2
 
 /*
   	Declare any global variables you may need between the BEGIN
@@ -73,6 +86,7 @@ void zendump_zval_type(zval *val);
 #endif
 
 void zendump_zval_dump(zval *val, int level);
+void zendump_zend_array_dump(zend_array *arr, int level);
 
 void zendump_zend_op_array_dump(zend_op_array *op_array, int column_width);
 
