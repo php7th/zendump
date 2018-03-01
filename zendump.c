@@ -44,6 +44,43 @@ PHP_INI_END()
 */
 /* }}} */
 
+zend_string *unescape_zend_string(zend_string *org, int persistent)
+{
+	zend_string *str = org;
+	int nrt0 = 0;
+	int idx;
+	for(idx = 0; idx < ZSTR_LEN(str); ++idx) {
+		if('\n' == ZSTR_VAL(str)[idx] || '\r' == ZSTR_VAL(str)[idx] || '\t' == ZSTR_VAL(str)[idx] || '\0' == ZSTR_VAL(str)[idx]) {
+			++nrt0;
+		}
+	}
+	if(nrt0) {
+		str = zend_string_dup(str, 0);
+		str = zend_string_extend(str, ZSTR_LEN(str), 0);
+		ZSTR_LEN(str) = ZSTR_LEN(org) + nrt0;
+		const char *src = ZSTR_VAL(org);
+		char *dst = ZSTR_VAL(str);
+		for(idx = 0; idx < ZSTR_LEN(org); ++idx) {
+			if('\n' == src[idx]) {
+				*dst++ = '\\';
+				*dst++ = 'n';
+			} else if('\r' == src[idx]) {
+				*dst++ = '\\';
+				*dst++ = 'r';
+			} else if('\t' == src[idx]) {
+				*dst++ = '\\';
+				*dst++ = 't';
+			} else if('\0' == src[idx]) {
+				*dst++ = '\\';
+				*dst++ = '0';
+			} else {
+				*dst++ = src[idx];
+			}
+		}
+	}
+	return str;
+}
+
 #if ZEND_DEBUG
 void zendump_zval_type(zval *val)
 {
@@ -117,11 +154,16 @@ again:
 		case IS_DOUBLE:
 			php_printf(": double(%.*G)\n", (int) EG(precision), Z_DVAL_P(val));
 			break;
-		case IS_STRING:
+		case IS_STRING: {
+			zend_string *str = unescape_zend_string(Z_STR_P(val), 0);
 			php_printf("-> string(%zd,\"", Z_STRLEN_P(val));
-			PHPWRITE(Z_STRVAL_P(val), Z_STRLEN_P(val));
+			PHPWRITE(ZSTR_VAL(str), ZSTR_LEN(str));
 			php_printf("\") addr(0x" ZEND_XLONG_FMT ") refcount(%u)\n", Z_STR_P(val), Z_REFCOUNTED_P(val) ? Z_REFCOUNT_P(val) : 1);
+			if(str != Z_STR_P(val)) {
+				zend_string_release(str);
+			}
 			break;
+		}
 		case IS_ARRAY: {
 			zend_array *arr = val->value.arr;
 			uint32_t hashSize = -(int32_t)arr->nTableMask;

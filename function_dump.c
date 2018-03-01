@@ -924,14 +924,19 @@ void zendump_operand_value(zval *val, int column_width)
 		case IS_DOUBLE:
 			php_printf("%-*.*G", column_width, (int) EG(precision), Z_DVAL_P(val));
 			break;
-		case IS_STRING:
+		case IS_STRING: {
+			zend_string *str = unescape_zend_string(Z_STR_P(val), 0);
 			PUTS("\"");
-			PHPWRITE(Z_STRVAL_P(val), Z_STRLEN_P(val));
+			PHPWRITE(ZSTR_VAL(str), ZSTR_LEN(str));
 			PUTS("\"");
-			if(column_width > Z_STRLEN_P(val) + 2) {
-				php_printf("%*c", column_width - 2 - Z_STRLEN_P(val), ' ');
+			if(column_width > ZSTR_LEN(str) + 2) {
+				php_printf("%*c", column_width - 2 - ZSTR_LEN(str), ' ');
+			}
+			if(str != Z_STR_P(val)) {
+				zend_string_release(str);
 			}
 			break;
+		}
 		case IS_ARRAY:
 			php_printf("array:0x%-*" ZEND_XLONG_FMT_SPEC, column_width - 8, Z_ARRVAL_P(val));
 			break;

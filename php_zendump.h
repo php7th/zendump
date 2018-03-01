@@ -85,6 +85,8 @@ ZEND_TSRMLS_CACHE_EXTERN()
 void zendump_zval_type(zval *val);
 #endif
 
+zend_string *unescape_zend_string(zend_string *org, int persistent);
+
 void zendump_zval_dump(zval *val, int level);
 void zendump_zend_array_dump(zend_array *arr, int level);
 
