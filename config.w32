@@ -5,9 +5,9 @@
 // ARG_WITH("zendump", "for zendump support", "no");
 
 // Otherwise, use ARG_ENABLE
-// ARG_ENABLE("zendump", "enable zendump support", "no");
+ARG_ENABLE("zendump", "enable zendump support", "no");
 
 if (PHP_ZENDUMP != "no") {
-	EXTENSION("zendump", "zendump.c function_dump.c", PHP_EXTNAME_SHARED, "/DZEND_ENABLE_STATIC_TSRMLS_CACHE=1");
+	EXTENSION("zendump", "zendump.c function_dump.c class_dump.c", PHP_EXTNAME_SHARED, "/DZEND_ENABLE_STATIC_TSRMLS_CACHE=1");
 }
 

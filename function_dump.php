@@ -56,6 +56,7 @@ zendump_vars();
 function &func04(array $a, bool $b, int $c, \Exception $e, ...$params) {
 	$a[] = [$b, $c];
 	$a[2] = 0;
+	zendump_vars();
 	return $a;
 }
 zendump_function('func04');
