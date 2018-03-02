@@ -34,15 +34,60 @@
 
 void zendump_operand_value(zval *val, int column_width);
 void zendump_znode_op_dump(znode_op *op, zend_uchar type, zend_op_array *op_array, int column_width);
-void zendump_zend_op_dump(zend_op *opcode, zend_op_array *op_array, int column_width);
-void zendump_zend_op_array_dump(zend_op_array *op_array, int column_width);
+void zendump_zend_op_dump(zend_op *opcode, zend_op_array *op_array, int column_width, int show_internal_operand);
+void zendump_zend_op_array_proto_dump(zend_op_array *op_array);
+void zendump_zend_internal_function_proto_dump(zend_internal_function *internal_function);
 
-void zendump_zend_op_array_dump(zend_op_array *op_array, int column_width)
+void zendump_zend_internal_function_dump(zend_internal_function *internal_function)
+{
+	php_printf("internal_function(\"%s\")", internal_function->function_name ? ZSTR_VAL(internal_function->function_name) : "");
+	zendump_zend_internal_function_proto_dump(internal_function);
+	php_printf(" handler(0x" ZEND_XLONG_FMT ")", internal_function->handler);
+	if(internal_function->module) {
+		php_printf(" module(%d,\"%s\",\"%s\")\n", internal_function->module->module_number, internal_function->module->name, internal_function->module->version);
+	}
+}
+
+void zendump_zend_internal_function_proto_dump(zend_internal_function *internal_function)
+{
+	uint32_t idx;
+	uint32_t count = internal_function->num_args;
+	if(internal_function->fn_flags & ZEND_ACC_VARIADIC) {
+		++count;
+	}
+	if(internal_function->function_name) {
+		php_printf(" %s%s(", (internal_function->fn_flags & ZEND_ACC_RETURN_REFERENCE) ? "&" : "", ZSTR_VAL(internal_function->function_name));
+	}
+	for(idx = 0; idx < count; ++idx) {
+		zend_internal_arg_info *info = internal_function->arg_info + idx;
+		if(info->name) {
+			const char *type = NULL;
+			if(ZEND_TYPE_IS_SET(info->type)) {
+				if(ZEND_TYPE_IS_CODE(info->type)) {
+					type = zendump_get_type_name(ZEND_TYPE_CODE(info->type));
+				} else if(ZEND_TYPE_IS_CLASS(info->type)) {
+					type = ZSTR_VAL(ZEND_TYPE_NAME(info->type));
+				}
+			}
+			php_printf("%s%s%s%s%s$%s", idx ? ", " : "", info->is_variadic ? "..." : "", type ? type : "", type ? " " : "", info->pass_by_reference ? "&" : "", info->name);
+		}
+	}
+	if(internal_function->function_name) {
+		PUTS(")");
+	}
+}
+
+void zendump_zend_op_array_dump(zend_op_array *op_array, int column_width, int show_internal_operand)
 {
 	int idx;
 	const char *columns[] = {"OPCODE", "OP1", "OP2", "RESULT"};
 
-	php_printf("op_array(\"%s\") addr(0x" ZEND_XLONG_FMT ") args(%u) vars(%u) T(%u)", op_array->function_name ? ZSTR_VAL(op_array->function_name) : "", op_array, op_array->num_args, op_array->last_var, op_array->T);
+	php_printf("op_array(\"%s\")", op_array->function_name ? ZSTR_VAL(op_array->function_name) : "");
+	zendump_zend_op_array_proto_dump(op_array);
+	if(op_array->refcount) {
+		php_printf(" refcount(%u)", *op_array->refcount);
+	}
+	php_printf(" addr(0x" ZEND_XLONG_FMT ") vars(%u) T(%u)", op_array, op_array->last_var, op_array->T);
 	if(op_array->filename) {
 		php_printf(" filename(%s) line(%u,%u)\n", ZSTR_VAL(op_array->filename), op_array->line_start, op_array->line_end);
 	}
@@ -53,15 +98,43 @@ void zendump_zend_op_array_dump(zend_op_array *op_array, int column_width)
 	PUTS("\n");
 
 	for(idx = 0; idx < op_array->last; ++idx) {
-		zendump_zend_op_dump(op_array->opcodes + idx, op_array, column_width);
+		zendump_zend_op_dump(op_array->opcodes + idx, op_array, column_width, show_internal_operand);
 	}
 }
 
-void zendump_zend_op_dump(zend_op *opcode, zend_op_array *op_array, int column_width)
+void zendump_zend_op_array_proto_dump(zend_op_array *op_array)
+{
+	uint32_t idx;
+	uint32_t count = op_array->num_args;
+	if(op_array->fn_flags & ZEND_ACC_VARIADIC) {
+		++count;
+	}
+	if(op_array->function_name) {
+		php_printf(" %s%s(", (op_array->fn_flags & ZEND_ACC_RETURN_REFERENCE) ? "&" : "", ZSTR_VAL(op_array->function_name));
+	}
+	for(idx = 0; idx < count; ++idx) {
+		zend_arg_info *info = op_array->arg_info + idx;
+		if(info->name) {
+			const char *type = NULL;
+			if(ZEND_TYPE_IS_SET(info->type)) {
+				if(ZEND_TYPE_IS_CODE(info->type)) {
+					type = zendump_get_type_name(ZEND_TYPE_CODE(info->type));
+				} else if(ZEND_TYPE_IS_CLASS(info->type)) {
+					type = ZSTR_VAL(ZEND_TYPE_NAME(info->type));
+				}
+			}
+			php_printf("%s%s%s%s%s$%s", idx ? ", " : "", info->is_variadic ? "..." : "", type ? type : "", type ? " " : "", info->pass_by_reference ? "&" : "", ZSTR_VAL(info->name));
+		}
+	}
+	if(op_array->function_name) {
+		PUTS(")");
+	}
+}
+
+void zendump_zend_op_dump(zend_op *opcode, zend_op_array *op_array, int column_width, int show_internal_operand)
 {
 	const char *op_str;
 	uint32_t ins_type = 0;
-	const int show_internal_operand = 0;
 	switch(opcode->opcode) {
 		case 0: {
 			op_str = "ZEND_NOP";

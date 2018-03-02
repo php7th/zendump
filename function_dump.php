@@ -50,15 +50,16 @@ func02($b, $c, $d, 4, 5, 6, '7', 'eight', 9.0);
 zendump_function("func", 50);
 zendump_function("func03", 50);
 zendump_function("zendump_function");
+zendump_function("zendump");
 func03($d, 200);
 zendump_vars();
-function func04(array $a, bool $b, int $c) {
+function &func04(array $a, bool $b, int $c, \Exception $e, ...$params) {
 	$a[] = [$b, $c];
 	$a[2] = 0;
 	return $a;
 }
 zendump_function('func04');
-func04([], '', 3);
+func04([], '', 3, new Exception, 5);
 eval('function func05(array $a, bool $b, int $c) {$a[] = [$b, $c];zendump_vars();return $a;}');
 func05([], '', 0);
 ?>

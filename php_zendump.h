@@ -38,6 +38,10 @@ extern zend_module_entry zendump_module_entry;
 #include "TSRM.h"
 #endif
 
+#if SIZEOF_SIZE_T != 8
+# error "Currently only supported on 64-bit platform"
+#endif
+
 #ifdef ZEND_ENABLE_ZVAL_LONG64
 # define ZEND_XLONG_FMT_SPEC PRIx64
 #else
@@ -81,16 +85,15 @@ ZEND_END_MODULE_GLOBALS(zendump)
 ZEND_TSRMLS_CACHE_EXTERN()
 #endif
 
-#if ZEND_DEBUG
-void zendump_zval_type(zval *val);
-#endif
+const char *zendump_get_type_name(uint32_t type);
 
 zend_string *unescape_zend_string(zend_string *org, int persistent);
 
 void zendump_zval_dump(zval *val, int level);
 void zendump_zend_array_dump(zend_array *arr, int level);
 
-void zendump_zend_op_array_dump(zend_op_array *op_array, int column_width);
+void zendump_zend_internal_function_dump(zend_internal_function *internal_function);
+void zendump_zend_op_array_dump(zend_op_array *op_array, int column_width, int show_internal_operand);
 
 #endif	/* PHP_ZENDUMP_H */
 

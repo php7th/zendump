@@ -90,52 +90,14 @@ zend_string *unescape_zend_string(zend_string *org, int persistent)
 	return str;
 }
 
-#if ZEND_DEBUG
-void zendump_zval_type(zval *val)
+const char *zend_type_names[] = {"undefined", "null", "false", "true", "long", "double", "string", "array", "object", "resource", "reference", "constant", "constant ast", "bool", "callable", "indirect", NULL, "pointer", "void", "iterable", "error"};
+const char *zendump_get_type_name(uint32_t type)
 {
-	switch(Z_TYPE_P(val)) {
-		case IS_UNDEF:
-			PHPWRITE("undefined\n", 10);
-			break;
-		case IS_NULL:
-			PHPWRITE("null\n", 5);
-			break;
-		case IS_FALSE:
-			PHPWRITE("false\n", 6);
-			break;
-		case IS_TRUE:
-			PHPWRITE("true\n", 5);
-			break;
-		case IS_LONG:
-			PHPWRITE("long\n", 5);
-			break;
-		case IS_DOUBLE:
-			PHPWRITE("double\n", 7);
-			break;
-		case IS_STRING:
-			PHPWRITE("string\n", 7);
-			break;
-		case IS_ARRAY:
-			PHPWRITE("array\n", 6);
-			break;
-		case IS_OBJECT:
-			PHPWRITE("object\n", 7);
-			break;
-		case IS_RESOURCE:
-			PHPWRITE("resource\n", 9);
-			break;
-		case IS_REFERENCE:
-			PHPWRITE("reference\n", 10);
-			break;
-		case IS_INDIRECT:
-			zendump_zval_type(Z_INDIRECT_P(val));
-			break;
-		default:
-			php_printf("unknown: %d\n", Z_TYPE_P(val));
-			break;
+	if(type < ARRAY_LENGTH(zend_type_names)) {
+		return zend_type_names[type];
 	}
+	return NULL;
 }
-#endif
 
 void zendump_zval_dump(zval *val, int level)
 {
@@ -341,18 +303,20 @@ PHP_FUNCTION(zendump_literals)
 PHP_FUNCTION(zendump_opcodes)
 {
 	zend_long column_width = 35;
+	zend_long show_internal_operand = 0;
 	zend_execute_data *prev = EX(prev_execute_data);
 
-	ZEND_PARSE_PARAMETERS_START(0, 1)
+	ZEND_PARSE_PARAMETERS_START(0, 2)
 		Z_PARAM_OPTIONAL
 		Z_PARAM_LONG(column_width)
+		Z_PARAM_LONG(show_internal_operand)
 	ZEND_PARSE_PARAMETERS_END();
 
 	if(!prev || !prev->func || prev->func->type != ZEND_USER_FUNCTION) {
 		return;
 	}
 
-	zendump_zend_op_array_dump(&prev->func->op_array, column_width);
+	zendump_zend_op_array_dump(&prev->func->op_array, column_width, show_internal_operand);
 }
 
 PHP_FUNCTION(zendump_function)
@@ -361,11 +325,13 @@ PHP_FUNCTION(zendump_function)
 	char *buf = NULL;
 	size_t buf_len;
 	zend_long column_width = 35;
+	zend_long show_internal_operand = 0;
 
-	ZEND_PARSE_PARAMETERS_START(1, 2)
+	ZEND_PARSE_PARAMETERS_START(1, 3)
 		Z_PARAM_STRING(buf, buf_len)
 		Z_PARAM_OPTIONAL
 		Z_PARAM_LONG(column_width)
+		Z_PARAM_LONG(show_internal_operand)
 	ZEND_PARSE_PARAMETERS_END();
 
 	val = zend_hash_str_find(EG(function_table), buf, buf_len);
@@ -374,12 +340,9 @@ PHP_FUNCTION(zendump_function)
 	}
 
 	if(ZEND_USER_CODE(Z_FUNC_P(val)->type)) {
-		zendump_zend_op_array_dump(&Z_FUNC_P(val)->op_array, column_width);
+		zendump_zend_op_array_dump(&Z_FUNC_P(val)->op_array, column_width, show_internal_operand);
 	} else if(Z_FUNC_P(val)->type == ZEND_INTERNAL_FUNCTION) {
-		php_printf("internal_function(\"%s\") handler(0x" ZEND_XLONG_FMT ")", Z_FUNC_P(val)->internal_function.function_name ? ZSTR_VAL(Z_FUNC_P(val)->internal_function.function_name) : "", Z_FUNC_P(val)->internal_function.handler);
-		if(Z_FUNC_P(val)->internal_function.module) {
-			php_printf(" module(%d,\"%s\",\"%s\")\n", Z_FUNC_P(val)->internal_function.module->module_number, Z_FUNC_P(val)->internal_function.module->name, Z_FUNC_P(val)->internal_function.module->version);
-		}
+		zendump_zend_internal_function_dump(&Z_FUNC_P(val)->internal_function);
 	}
 }
 
@@ -469,11 +432,13 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO(arginfo_zendump_opcodes, 0)
 	ZEND_ARG_INFO(0, column_width)
+	ZEND_ARG_INFO(0, show_internal_operand)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO(arginfo_zendump_function, 0)
 	ZEND_ARG_INFO(0, name)
 	ZEND_ARG_INFO(0, column_width)
+	ZEND_ARG_INFO(0, show_internal_operand)
 ZEND_END_ARG_INFO()
 
 /* {{{ zendump_functions[]
