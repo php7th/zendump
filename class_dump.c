@@ -27,6 +27,9 @@
 #include "ext/standard/info.h"
 #include "php_zendump.h"
 
+zend_string *zendump_properties_offset_to_name(zend_class_entry *ce, uint32_t offset);
+void zendump_access_flags_dump(uint32_t flags);
+void zendump_properties_info_dump(zend_class_entry *ce);
 void zendump_class_traits_dump(zend_class_entry *ce);
 void zendump_class_interfaces_dump(zend_class_entry *ce);
 
@@ -39,9 +42,15 @@ void zendump_zend_class_entry_dump(zend_class_entry *ce, int show_magic_function
 	if(ce->parent && ce->parent->name) {
 		php_printf(" parent(\"%s\")", ZSTR_VAL(ce->parent->name));
 	}
+	if(ce->num_interfaces || ce->num_traits || ce->properties_info.nNumOfElements) {
+		PUTS(" {\n");
+		zendump_class_interfaces_dump(ce);
+		zendump_class_traits_dump(ce);
+		zendump_properties_info_dump(ce);
+		zendump_static_properties_dump(ce, 0);
+		PUTS("}");
+	}
 	PUTS("\n");
-	zendump_class_interfaces_dump(ce);
-	zendump_class_traits_dump(ce);
 	if(show_magic_functions) {
 		if(ce->constructor) {
 			zendump_zend_function_dump(ce->constructor, column_width, show_internal_operand);
@@ -91,14 +100,14 @@ void zendump_class_interfaces_dump(zend_class_entry *ce)
 	if(ce->num_interfaces == 0) {
 		return;
 	}
-	PUTS("interfaces(");
+	php_printf("%*cinterfaces(%u) {\n", INDENT_SIZE, ' ', ce->num_interfaces);
 	for(idx = 0; idx < ce->num_interfaces; ++idx) {
 		zend_class_entry *interface = ce->interfaces[idx];
 		if(interface->name) {
-			php_printf("%s\"%s\"", idx > 0 ? ", " : "", ZSTR_VAL(interface->name));
+			php_printf("%*c\"%s\"\n", INDENT_SIZE << 1, ' ', ZSTR_VAL(interface->name));
 		}
 	}
-	PUTS(")\n");
+	php_printf("%*c}\n", INDENT_SIZE, ' ');
 }
 
 void zendump_class_traits_dump(zend_class_entry *ce)
@@ -107,15 +116,16 @@ void zendump_class_traits_dump(zend_class_entry *ce)
 	if(ce->num_traits == 0) {
 		return;
 	}
-	php_printf("traits(%d) {\n", ce->num_traits);
+	php_printf("%*ctraits(%d) {\n", INDENT_SIZE, ' ', ce->num_traits);
 	for(idx = 0; idx < ce->num_traits; ++idx) {
 		zend_class_entry *trait = ce->traits[idx];
 		if(trait->name) {
-			php_printf("  \"%s\"\n", ZSTR_VAL(trait->name));
+			php_printf("%*c\"%s\"\n", INDENT_SIZE << 1, ' ', ZSTR_VAL(trait->name));
 		}
 	}
-	PUTS("}\n");
+	php_printf("%*c}\n", INDENT_SIZE, ' ');
 	if(ce->trait_aliases) {
+		php_printf("%*calias {\n", INDENT_SIZE, ' ');
 		idx = 0;
 		while(1) {
 			zend_trait_alias *alias = ce->trait_aliases[idx];
@@ -123,19 +133,21 @@ void zendump_class_traits_dump(zend_class_entry *ce)
 				break;
 			}
 			if(alias->alias) {
-				php_printf("alias(\"%s\" => ", ZSTR_VAL(alias->alias));
+				php_printf("%*c\"%s\" => ", INDENT_SIZE << 1, ' ', ZSTR_VAL(alias->alias));
 			}
 			if(alias->trait_method) {
 				zend_string *class_name = alias->trait_method->class_name;
 				if(!class_name && alias->trait_method->ce) {
 					class_name = alias->trait_method->ce->name;
 				}
-				php_printf("\"%s%s%s\")\n", class_name ? ZSTR_VAL(class_name) : "", class_name ? "::" : "", alias->trait_method->method_name ? ZSTR_VAL(alias->trait_method->method_name) : "");
+				php_printf("\"%s%s%s\"\n", class_name ? ZSTR_VAL(class_name) : "", class_name ? "::" : "", alias->trait_method->method_name ? ZSTR_VAL(alias->trait_method->method_name) : "");
 			}
 			++idx;
 		}
+		php_printf("%*c}\n", INDENT_SIZE, ' ');
 	}
 	if(ce->trait_precedences) {
+		php_printf("%*cexclude {\n", INDENT_SIZE, ' ');
 		idx = 0;
 		while(1) {
 			zend_trait_precedence *precedence = ce->trait_precedences[idx];
@@ -147,7 +159,7 @@ void zendump_class_traits_dump(zend_class_entry *ce)
 				if(!class_name && precedence->trait_method->ce) {
 					class_name = precedence->trait_method->ce->name;
 				}
-				php_printf("exclude(\"%s%s%s\"", class_name ? ZSTR_VAL(class_name) : "", class_name ? "::" : "", precedence->trait_method->method_name ? ZSTR_VAL(precedence->trait_method->method_name) : "");
+				php_printf("%*c\"%s%s%s\"", INDENT_SIZE << 1, ' ', class_name ? ZSTR_VAL(class_name) : "", class_name ? "::" : "", precedence->trait_method->method_name ? ZSTR_VAL(precedence->trait_method->method_name) : "");
 				if(precedence->exclude_from_classes) {
 					int index = 0;
 					PUTS(" from");
@@ -162,9 +174,116 @@ void zendump_class_traits_dump(zend_class_entry *ce)
 						++index;
 					}
 				}
-				PUTS(")\n");
+				PUTS("\n");
 			}
 			++idx;
 		}
+		php_printf("%*c}\n", INDENT_SIZE, ' ');
 	}
+}
+
+zend_string *zendump_properties_offset_to_name(zend_class_entry *ce, uint32_t offset)
+{
+	uint32_t idx;
+	for(idx = 0; idx < ce->properties_info.nNumUsed; ++idx) {
+		Bucket *bucket = ce->properties_info.arData + idx;
+		zend_property_info *info = (zend_property_info*)Z_PTR(bucket->val);
+		if(info->offset == offset) {
+			return bucket->key;
+		}
+	}
+	return NULL;
+}
+
+void zendump_properties_info_dump(zend_class_entry *ce)
+{
+	uint32_t idx;
+	if(!ce->properties_info.nNumOfElements) {
+		return;
+	}
+	php_printf("%*cproperties(%u) {\n", INDENT_SIZE, ' ', ce->properties_info.nNumOfElements);
+	for(idx = 0; idx < ce->properties_info.nNumUsed; ++idx) {
+		Bucket *bucket = ce->properties_info.arData + idx;
+		zend_property_info *info = (zend_property_info*)Z_PTR(bucket->val);
+		php_printf("%*c", INDENT_SIZE << 1, ' ');
+		zendump_access_flags_dump(info->flags);
+		if(bucket->key) {
+			php_printf("$%s;", ZSTR_VAL(bucket->key));
+		}
+		if(info->ce && info->ce->name) {
+			php_printf(" class(\"%s\")", ZSTR_VAL(info->ce->name));
+		}
+		if(info->name) {
+			zend_string *name = unescape_zend_string(info->name, 0);
+			php_printf(" name(\"%s\") offset(%u) default: ", ZSTR_VAL(name), info->offset);
+			if(name != info->name) {
+				zend_string_release(name);
+			}
+			zval *default_value = NULL;
+			if(info->flags & ZEND_ACC_STATIC) {
+				default_value = ce->default_static_members_table + info->offset;
+			} else {
+				default_value = ce->default_properties_table + (info->offset + sizeof(zval) - sizeof(zend_object)) / sizeof(zval);
+			}
+			zendump_zval_dump(default_value, 0);
+		}
+	}
+	php_printf("%*c}\n", INDENT_SIZE, ' ');
+}
+
+void zendump_access_flags_dump(uint32_t flags)
+{
+	if(flags & ZEND_ACC_PUBLIC) {
+		php_printf("public ");
+	}
+	if(flags & ZEND_ACC_PROTECTED) {
+		php_printf("protected ");
+	}
+	if(flags & ZEND_ACC_PRIVATE) {
+		php_printf("private ");
+	}
+	if(flags & ZEND_ACC_STATIC) {
+		php_printf("static ");
+	}
+	if(flags & ZEND_ACC_ABSTRACT) {
+		php_printf("abstract ");
+	}
+	if(flags & ZEND_ACC_FINAL) {
+		php_printf("final ");
+	}
+}
+
+void zendump_static_properties_dump(zend_class_entry *ce, int level)
+{
+	int idx;
+	if(!ce->default_static_members_count) {
+		return;
+	}
+	php_printf("%*cstatic_members(%d) {\n", level + INDENT_SIZE, ' ', ce->default_static_members_count);
+	for(idx = 0; idx < ce->default_static_members_count; ++idx) {
+		zend_string *name = zendump_properties_offset_to_name(ce, idx);
+		if(name) {
+			php_printf("%*c$%s =>\n", level + (INDENT_SIZE << 1), ' ', ZSTR_VAL(name));
+		}
+		zendump_zval_dump(&ce->static_members_table[idx], level + (INDENT_SIZE << 1));
+	}
+	php_printf("%*c}\n", level + INDENT_SIZE, ' ');
+}
+
+void zendump_properties_dump(zend_object *obj, int level)
+{
+	int idx;
+	if(!obj->ce->default_properties_count) {
+		return;
+	}
+	php_printf("%*cproperties(%d) {\n", level + INDENT_SIZE, ' ', obj->ce->default_properties_count);
+	for(idx = 0; idx < obj->ce->default_properties_count; ++idx) {
+		uint32_t offset = sizeof(zend_object) + sizeof(zval) * (idx - 1);
+		zend_string *name = zendump_properties_offset_to_name(obj->ce, offset);
+		if(name) {
+			php_printf("%*c$%s =>\n", level + (INDENT_SIZE << 1), ' ', ZSTR_VAL(name));
+		}
+		zendump_zval_dump(&obj->properties_table[idx], level + (INDENT_SIZE << 1));
+	}
+	php_printf("%*c}\n", level + INDENT_SIZE, ' ');
 }

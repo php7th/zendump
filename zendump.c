@@ -165,33 +165,25 @@ again:
 		}
 		case IS_OBJECT: {
 			zend_string *class_name = Z_OBJ_HANDLER_P(val, get_class_name)(Z_OBJ_P(val));
-			php_printf("-> object(%s) addr(0x" ZEND_XLONG_FMT ") refcount(%u)\n", ZSTR_VAL(class_name), Z_OBJ_P(val), Z_REFCOUNT_P(val));
+			php_printf("-> object(%s) addr(0x" ZEND_XLONG_FMT ") refcount(%u)", ZSTR_VAL(class_name), Z_OBJ_P(val), Z_REFCOUNT_P(val));
 			zend_string_release(class_name);
-			if(Z_OBJ_P(val)->ce) {
-				int idx;
+			if((Z_OBJ_P(val)->ce && (Z_OBJ_P(val)->ce->default_properties_count || Z_OBJ_P(val)->ce->default_static_members_count)) || (Z_OBJ_P(val)->properties && Z_OBJ_P(val)->properties->nNumOfElements)) {
+				PUTS(" {\n");
+				if(Z_OBJ_P(val)->ce) {
+					zendump_properties_dump(Z_OBJ_P(val), level);
+					zendump_static_properties_dump(Z_OBJ_P(val)->ce, level);
+				}
+				if(Z_OBJ_P(val)->properties && Z_OBJ_P(val)->properties->nNumOfElements) {
+					php_printf("%*cproperties(%u) {\n", level + INDENT_SIZE, ' ', Z_OBJ_P(val)->properties->nNumOfElements);
+					zendump_zend_array_dump(Z_OBJ_P(val)->properties, level + (INDENT_SIZE << 1));
+					php_printf("%*c}\n", level + INDENT_SIZE, ' ');
+				}
 				if(level > 0) {
 					php_printf("%*c", level, ' ');
 				}
-				php_printf("default_properties(%d) {\n", Z_OBJ_P(val)->ce->default_properties_count);
-				for(idx = 0; idx < Z_OBJ_P(val)->ce->default_properties_count; ++idx) {
-					zendump_zval_dump(&Z_OBJ_P(val)->properties_table[idx], level + INDENT_SIZE);
-				}
-				if(level > 0) {
-					php_printf("%*c", level, ' ');
-				}
-				PUTS("}\n");
+				PUTS("}");
 			}
-			if(Z_OBJ_P(val)->properties) {
-				if(level > 0) {
-					php_printf("%*c", level, ' ');
-				}
-				php_printf("properties(%u) {\n", Z_OBJ_P(val)->properties->nNumOfElements);
-				zendump_zend_array_dump(Z_OBJ_P(val)->properties, level + INDENT_SIZE);
-				if(level > 0) {
-					php_printf("%*c", level, ' ');
-				}
-				PUTS("}\n");
-			}
+			PUTS("\n");
 			break;
 		}
 		case IS_RESOURCE: {

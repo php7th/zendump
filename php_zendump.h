@@ -97,6 +97,8 @@ void zendump_zend_op_array_dump(zend_op_array *op_array, int column_width, int s
 void zendump_zend_function_dump(zend_function *function, int column_width, int show_internal_operand);
 
 void zendump_zend_class_entry_dump(zend_class_entry *ce, int show_magic_functions, int column_width, int show_internal_operand);
+void zendump_static_properties_dump(zend_class_entry *ce, int level);
+void zendump_properties_dump(zend_object *obj, int level);
 
 #endif	/* PHP_ZENDUMP_H */
 
