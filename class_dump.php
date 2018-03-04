@@ -34,14 +34,15 @@ class SimpleClass {
 		$this->props[$name] = $value;
 	}
 }
-zendump_class("exception");
-zendump_class("iterator");
-zendump_class("arrayiterator");
+zendump_class("Exception");
+zendump_class("Iterator");
+zendump_class("ArrayIterator");
 class SecondClass extends SimpleClass {}
-zendump_class("secondclass", true);
-zendump_class("simpleclass", true);
+zendump_class("SecondClass", false);
+zendump_class("SimpleClass", false);
 $o = new SecondClass;
 $o->hello = "hello class, object!\n";
 echo $o->hello;
-zendump_class('a');
+zendump_class('A');
 zendump($o);
+zendump_method('SimpleClass', 'smallTalk');
