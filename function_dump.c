@@ -50,25 +50,36 @@ void zendump_zend_internal_function_proto_dump(zend_internal_function *internal_
 {
 	uint32_t idx;
 	uint32_t count = internal_function->num_args;
+	if(!internal_function->function_name) {
+		return;
+	}
 	if(internal_function->fn_flags & ZEND_ACC_VARIADIC) {
 		++count;
 	}
 	if(level > 0) {
 		php_printf("%*c", level, ' ');
 	}
-	if(internal_function->function_name) {
-		php_printf("%s%s(", (internal_function->fn_flags & ZEND_ACC_RETURN_REFERENCE) ? "&" : "", ZSTR_VAL(internal_function->function_name));
-	}
+	php_printf("%s%s(", (internal_function->fn_flags & ZEND_ACC_RETURN_REFERENCE) ? "&" : "", ZSTR_VAL(internal_function->function_name));
 	for(idx = 0; idx < count; ++idx) {
 		zend_internal_arg_info *info = internal_function->arg_info + idx;
 		if(info->name) {
 			const char *type = NULL;
-			if(ZEND_TYPE_IS_SET(info->type)) {
-				if(ZEND_TYPE_IS_CODE(info->type)) {
-					type = zendump_get_type_name(ZEND_TYPE_CODE(info->type));
-				} else if(ZEND_TYPE_IS_CLASS(info->type)) {
-					type = ZSTR_VAL(ZEND_TYPE_NAME(info->type));
+			if(internal_function->fn_flags & ZEND_ACC_HAS_TYPE_HINTS) {
+#if PHP_API_VERSION >= 20170718
+				if(ZEND_TYPE_IS_SET(info->type)) {
+					if(ZEND_TYPE_IS_CODE(info->type)) {
+						type = zendump_get_type_name(ZEND_TYPE_CODE(info->type));
+					} else if(ZEND_TYPE_IS_CLASS(info->type)) {
+						type = ZSTR_VAL(ZEND_TYPE_NAME(info->type));
+					}
 				}
+#else
+				if(info->type_hint == IS_OBJECT) {
+					type = info->class_name;
+				} else if(info->type_hint != IS_UNDEF) {
+					type = zendump_get_type_name(info->type_hint);
+				}
+#endif
 			}
 			php_printf("%s%s%s%s%s$%s", idx ? ", " : "", info->is_variadic ? "..." : "", type ? type : "", type ? " " : "", info->pass_by_reference ? "&" : "", info->name);
 		}
@@ -107,25 +118,36 @@ void zendump_zend_op_array_proto_dump(zend_op_array *op_array, int level)
 {
 	uint32_t idx;
 	uint32_t count = op_array->num_args;
+	if(!op_array->function_name) {
+		return;
+	}
 	if(op_array->fn_flags & ZEND_ACC_VARIADIC) {
 		++count;
 	}
 	if(level > 0) {
 		php_printf("%*c", level, ' ');
 	}
-	if(op_array->function_name) {
-		php_printf("%s%s(", (op_array->fn_flags & ZEND_ACC_RETURN_REFERENCE) ? "&" : "", ZSTR_VAL(op_array->function_name));
-	}
+	php_printf("%s%s(", (op_array->fn_flags & ZEND_ACC_RETURN_REFERENCE) ? "&" : "", ZSTR_VAL(op_array->function_name));
 	for(idx = 0; idx < count; ++idx) {
 		zend_arg_info *info = op_array->arg_info + idx;
 		if(info->name) {
 			const char *type = NULL;
-			if(ZEND_TYPE_IS_SET(info->type)) {
-				if(ZEND_TYPE_IS_CODE(info->type)) {
-					type = zendump_get_type_name(ZEND_TYPE_CODE(info->type));
-				} else if(ZEND_TYPE_IS_CLASS(info->type)) {
-					type = ZSTR_VAL(ZEND_TYPE_NAME(info->type));
+			if(op_array->fn_flags & ZEND_ACC_HAS_TYPE_HINTS) {
+#if PHP_API_VERSION >= 20170718
+				if(ZEND_TYPE_IS_SET(info->type)) {
+					if(ZEND_TYPE_IS_CODE(info->type)) {
+						type = zendump_get_type_name(ZEND_TYPE_CODE(info->type));
+					} else if(ZEND_TYPE_IS_CLASS(info->type)) {
+						type = ZSTR_VAL(ZEND_TYPE_NAME(info->type));
+					}
 				}
+#else
+				if(info->type_hint == IS_OBJECT && info->class_name) {
+					type = ZSTR_VAL(info->class_name);
+				} else if(info->type_hint != IS_UNDEF) {
+					type = zendump_get_type_name(info->type_hint);
+				}
+#endif
 			}
 			php_printf("%s%s%s%s%s$%s", idx ? ", " : "", info->is_variadic ? "..." : "", type ? type : "", type ? " " : "", info->pass_by_reference ? "&" : "", ZSTR_VAL(info->name));
 		}

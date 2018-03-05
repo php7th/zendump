@@ -189,9 +189,13 @@ void zendump_class_traits_dump(zend_class_entry *ce)
 zend_string *zendump_properties_offset_to_name(zend_class_entry *ce, uint32_t offset)
 {
 	uint32_t idx;
+	zend_property_info *info;
 	for(idx = 0; idx < ce->properties_info.nNumUsed; ++idx) {
 		Bucket *bucket = ce->properties_info.arData + idx;
-		zend_property_info *info = (zend_property_info*)Z_PTR(bucket->val);
+		if(Z_TYPE(bucket->val) == IS_UNDEF) {
+			continue;
+		}
+		info = (zend_property_info*)Z_PTR(bucket->val);
 		if(info->offset == offset) {
 			return bucket->key;
 		}
@@ -202,13 +206,17 @@ zend_string *zendump_properties_offset_to_name(zend_class_entry *ce, uint32_t of
 void zendump_properties_info_dump(zend_class_entry *ce)
 {
 	uint32_t idx;
+	zend_property_info *info;
 	if(!ce->properties_info.nNumOfElements) {
 		return;
 	}
 	php_printf("%*cproperties(%u) {\n", INDENT_SIZE, ' ', ce->properties_info.nNumOfElements);
 	for(idx = 0; idx < ce->properties_info.nNumUsed; ++idx) {
 		Bucket *bucket = ce->properties_info.arData + idx;
-		zend_property_info *info = (zend_property_info*)Z_PTR(bucket->val);
+		if(Z_TYPE(bucket->val) == IS_UNDEF) {
+			continue;
+		}
+		info = (zend_property_info*)Z_PTR(bucket->val);
 		php_printf("%*c", INDENT_SIZE << 1, ' ');
 		zendump_access_flags_dump(info->flags);
 		if(bucket->key) {
@@ -292,6 +300,7 @@ void zendump_properties_dump(zend_object *obj, int level)
 void zendump_function_table_dump(zend_class_entry *ce)
 {
 	uint32_t idx;
+	zend_function *func, *prototype;
 	if(!ce->function_table.nNumOfElements) {
 		return;
 	}
@@ -301,13 +310,13 @@ void zendump_function_table_dump(zend_class_entry *ce)
 		if(Z_TYPE(bucket->val) == IS_UNDEF) {
 			continue;
 		}
-		zend_function *func = (zend_function*)Z_FUNC(bucket->val);
+		func = (zend_function*)Z_FUNC(bucket->val);
 		php_printf("%*c", INDENT_SIZE << 1, ' ');
 		zendump_access_flags_dump(func->common.fn_flags);
 		if(bucket->key) {
 			php_printf("%s => ", ZSTR_VAL(bucket->key));
 		}
-		zend_function *prototype = func->common.prototype;
+		prototype = func->common.prototype;
 		if(prototype && prototype->common.scope && prototype->common.scope->name) {
 			php_printf("%s::", ZSTR_VAL(prototype->common.scope->name));
 		}
@@ -321,16 +330,21 @@ void zendump_function_table_dump(zend_class_entry *ce)
 	php_printf("%*c}\n", INDENT_SIZE, ' ');
 }
 
+#if PHP_API_VERSION >= 20160303
 void zendump_constants_table_dump(zend_class_entry *ce)
 {
 	uint32_t idx;
+	zend_class_constant *info;
 	if(!ce->constants_table.nNumOfElements) {
 		return;
 	}
 	php_printf("%*cconstants(%u) {\n", INDENT_SIZE, ' ', ce->constants_table.nNumOfElements);
 	for(idx = 0; idx < ce->constants_table.nNumUsed; ++idx) {
 		Bucket *bucket = ce->constants_table.arData + idx;
-		zend_class_constant *info = (zend_class_constant*)Z_PTR(bucket->val);
+		if(Z_TYPE(bucket->val) == IS_UNDEF) {
+			continue;
+		}
+		info = (zend_class_constant*)Z_PTR(bucket->val);
 		php_printf("%*c", INDENT_SIZE << 1, ' ');
 		zendump_access_flags_dump(info->value.u2.access_flags);
 		if(bucket->key) {
@@ -341,3 +355,26 @@ void zendump_constants_table_dump(zend_class_entry *ce)
 	}
 	php_printf("%*c}\n", INDENT_SIZE, ' ');
 }
+#else
+void zendump_constants_table_dump(zend_class_entry *ce)
+{
+	uint32_t idx;
+	if(!ce->constants_table.nNumOfElements) {
+		return;
+	}
+	php_printf("%*cconstants(%u) {\n", INDENT_SIZE, ' ', ce->constants_table.nNumOfElements);
+	for(idx = 0; idx < ce->constants_table.nNumUsed; ++idx) {
+		Bucket *bucket = ce->constants_table.arData + idx;
+		if(Z_TYPE(bucket->val) == IS_UNDEF) {
+			continue;
+		}
+		php_printf("%*c", INDENT_SIZE << 1, ' ');
+		if(bucket->key) {
+			php_printf("%s;", ZSTR_VAL(bucket->key));
+		}
+		PUTS(" value : ");
+		zendump_zval_dump(&bucket->val, 0);
+	}
+	php_printf("%*c}\n", INDENT_SIZE, ' ');
+}
+#endif

@@ -125,7 +125,7 @@ again:
 			php_printf(": long(" ZEND_LONG_FMT ")\n", Z_LVAL_P(val));
 			break;
 		case IS_DOUBLE:
-			php_printf(": double(%.*G)\n", (int) EG(precision), Z_DVAL_P(val));
+			php_printf(": double(%.*G) hex(" ZEND_XLONG_FMT ")\n", (int) EG(precision), Z_DVAL_P(val), Z_LVAL_P(val));
 			break;
 		case IS_STRING: {
 			zend_string *str = zendump_unescape_zend_string(Z_STR_P(val), 0);
@@ -286,10 +286,10 @@ PHP_FUNCTION(zendump_vars)
 	for(idx = 0; idx < prev->func->op_array.last_var; ++idx) {
 		zend_string *var = prev->func->op_array.vars[idx];
 		php_printf("%*c$", INDENT_SIZE, ' ');
-		PHPWRITE(var->val, var->len);
+		PHPWRITE(ZSTR_VAL(var), ZSTR_LEN(var));
 		PUTS(" ->\n");
 
-		zval *val = (zval*)(prev + 1) + idx;
+		zval *val = ZEND_CALL_VAR_NUM(prev, idx);
 		zendump_zval_dump(val, INDENT_SIZE);
 	}
 
@@ -308,12 +308,12 @@ PHP_FUNCTION(zendump_args)
 	php_printf("args(%d): {\n", ZEND_CALL_NUM_ARGS(prev));
 
 	for(idx = 0; idx < prev->func->op_array.num_args; ++idx) {
-		zval *val = (zval*)(prev + 1) + idx;
+		zval *val = ZEND_CALL_VAR_NUM(prev, idx);
 		zendump_zval_dump(val, INDENT_SIZE);
 	}
 
 	for(idx = 0; idx < ZEND_CALL_NUM_ARGS(prev) - prev->func->op_array.num_args; ++idx) {
-		zval *val = (zval*)(prev + 1) + prev->func->op_array.last_var + prev->func->op_array.T + idx;
+		zval *val = ZEND_CALL_VAR_NUM(prev, prev->func->op_array.last_var + prev->func->op_array.T + idx);
 		zendump_zval_dump(val, INDENT_SIZE);
 	}
 
