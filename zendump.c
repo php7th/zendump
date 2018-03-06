@@ -272,6 +272,19 @@ PHP_FUNCTION(zendump_symbols)
 	PUTS("}\n");
 }
 
+PHP_FUNCTION(zendump_statics)
+{
+	zend_execute_data *prev = EX(prev_execute_data);
+
+	if(!prev || !prev->func || prev->func->type != ZEND_USER_FUNCTION || !prev->func->op_array.static_variables) {
+		return;
+	}
+
+	php_printf("statics(%d): {\n", prev->func->op_array.static_variables->nNumOfElements);
+	zendump_zend_array_dump(prev->func->op_array.static_variables, INDENT_SIZE);
+	PUTS("}\n");
+}
+
 PHP_FUNCTION(zendump_vars)
 {
 	int idx;
@@ -522,6 +535,9 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO(arginfo_zendump_symbols, 0)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO(arginfo_zendump_statics, 0)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO(arginfo_zendump_literals, 0)
 ZEND_END_ARG_INFO()
 
@@ -559,6 +575,7 @@ const zend_function_entry zendump_functions[] = {
 	PHP_FE(zendump_vars,     arginfo_zendump_vars)
 	PHP_FE(zendump_args,     arginfo_zendump_args)
 	PHP_FE(zendump_symbols,  arginfo_zendump_symbols)
+	PHP_FE(zendump_statics,  arginfo_zendump_statics)
 	PHP_FE(zendump_literals, arginfo_zendump_literals)
 	PHP_FE(zendump_opcodes,  arginfo_zendump_opcodes)
 	PHP_FE(zendump_function, arginfo_zendump_function)

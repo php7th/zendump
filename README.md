@@ -17,27 +17,37 @@ function func01($a, &$b) {
 }
 func01([1, 2], 'hello');
 ```
-3. Use the `zendump_opcodes()` function to dump the opcodes of the calling function:
+3. Use the `zendump_statics()` function to dump the static variables declared in the calling function's scope:
 ```
 <?php
-function func02($a, &$b) {
+function func02() {
+    static $a = 0;
+    echo $a++;
+    zendump_statics();
+}
+func02();
+```
+4. Use the `zendump_opcodes()` function to dump the opcodes of the calling function:
+```
+<?php
+function func03($a, &$b) {
     zendump_opcodes();
     $b += $a;
     return $b;
 }
-func02(1, 2);
+func03(1, 2);
 ```
-4. Use the `zendump_function()` function to view an internal function's basic information or dump the opcodes of a user defined function:
+5. Use the `zendump_function()` function to view an internal function's basic information or dump the opcodes of a user defined function:
 ```
 <?php
-function func03(&$a, $b) {
+function func04(&$a, $b) {
     $a += $b;
     return $a;
 }
 zendump_function('array_merge');
-zendump_function('func03');
+zendump_function('func04');
 ```
-5. Use the `zendump_class()` function to view the basic information of the given class specified by the name:
+6. Use the `zendump_class()` function to view the basic information of the given class specified by the name:
 ```
 <?php
 class SimpleClass {
@@ -55,7 +65,7 @@ class SimpleClass {
 zendump_class('ArrayAccess');
 zendump_class('SimpleClass');
 ```
-6. Use the `zendump_method()` function to view the information of a class method:
+7. Use the `zendump_method()` function to view the information of a class method:
 ```
 <?php
 class SecondClass {
@@ -65,4 +75,4 @@ class SecondClass {
 }
 zendump_method('SecondClass', 'greeting');
 ```
-7. Some other functions like `zendump_args()`, `zendump_literals()` and `zendump_symbols()` if you interest in.
+8. Some other functions like `zendump_args()`, `zendump_literals()` and `zendump_symbols()` if you interest in.
