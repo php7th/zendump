@@ -263,7 +263,12 @@ PHP_FUNCTION(zendump_symbols)
 {
 	zend_execute_data *prev = EX(prev_execute_data);
 
-	if(!prev || !prev->symbol_table) {
+	if(!prev) {
+		return;
+	}
+
+	if(!prev->symbol_table) {
+		PHPWRITE("null\n", 5);
 		return;
 	}
 
@@ -276,7 +281,12 @@ PHP_FUNCTION(zendump_statics)
 {
 	zend_execute_data *prev = EX(prev_execute_data);
 
-	if(!prev || !prev->func || prev->func->type != ZEND_USER_FUNCTION || !prev->func->op_array.static_variables) {
+	if(!prev || !prev->func || prev->func->type != ZEND_USER_FUNCTION) {
+		return;
+	}
+
+	if(!prev->func->op_array.static_variables) {
+		PHPWRITE("null\n", 5);
 		return;
 	}
 

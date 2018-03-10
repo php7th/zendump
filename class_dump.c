@@ -285,7 +285,7 @@ void zendump_properties_dump(zend_object *obj, int level)
 	if(!obj->ce->default_properties_count) {
 		return;
 	}
-	php_printf("%*cproperties(%d) {\n", level + INDENT_SIZE, ' ', obj->ce->default_properties_count);
+	php_printf("%*cdefault_properties(%d) {\n", level + INDENT_SIZE, ' ', obj->ce->default_properties_count);
 	for(idx = 0; idx < obj->ce->default_properties_count; ++idx) {
 		uint32_t offset = sizeof(zend_object) + sizeof(zval) * (idx - 1);
 		zend_string *name = zendump_properties_offset_to_name(obj->ce, offset);
