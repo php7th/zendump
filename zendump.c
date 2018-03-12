@@ -144,6 +144,12 @@ again:
 			uint32_t *hash = (uint32_t*)arr->arData - hashSize;
 			uint32_t idx;
 
+			if (level > 0 && ZEND_HASH_APPLY_PROTECTION(arr) && ++arr->u.v.nApplyCount > 1) {
+				PUTS("*RECURSION*\n");
+				--arr->u.v.nApplyCount;
+				return;
+			}
+
 			for(idx = 0; idx < hashSize; ++idx) {
 				if(hash[idx] != HT_INVALID_IDX) {
 					++hashUsed;
@@ -158,7 +164,13 @@ again:
 				php_printf("%*c", level, ' ');
 			}
 			PUTS("{\n");
+
 			zendump_zend_array_dump(arr, level + INDENT_SIZE);
+
+			if (level > 0 && ZEND_HASH_APPLY_PROTECTION(arr)) {
+				--arr->u.v.nApplyCount;
+			}
+
 			if(level > 0) {
 				php_printf("%*c", level, ' ');
 			}
@@ -166,7 +178,14 @@ again:
 			break;
 		}
 		case IS_OBJECT: {
-			zend_string *class_name = Z_OBJ_HANDLER_P(val, get_class_name)(Z_OBJ_P(val));
+			zend_string *class_name = NULL;
+			if (Z_OBJ_APPLY_COUNT_P(val) > 0) {
+				PUTS("*RECURSION*\n");
+				return;
+			}
+			Z_OBJ_INC_APPLY_COUNT_P(val);
+
+			class_name = Z_OBJ_HANDLER_P(val, get_class_name)(Z_OBJ_P(val));
 			php_printf("-> object(%s) addr(0x" ZEND_XLONG_FMT ") refcount(%u)", ZSTR_VAL(class_name), Z_OBJ_P(val), Z_REFCOUNT_P(val));
 			zend_string_release(class_name);
 			if((Z_OBJ_P(val)->ce && (Z_OBJ_P(val)->ce->default_properties_count || Z_OBJ_P(val)->ce->default_static_members_count)) || (Z_OBJ_P(val)->properties && Z_OBJ_P(val)->properties->nNumOfElements)) {
@@ -186,6 +205,7 @@ again:
 				PUTS("}");
 			}
 			PUTS("\n");
+			Z_OBJ_DEC_APPLY_COUNT_P(val);
 			break;
 		}
 		case IS_RESOURCE: {
