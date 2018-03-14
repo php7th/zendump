@@ -92,7 +92,7 @@ void zendump_zend_internal_function_proto_dump(zend_internal_function *internal_
 void zendump_zend_op_array_dump(zend_op_array *op_array, int column_width, int show_internal_operand)
 {
 	int idx;
-	const char *columns[] = {"OPCODE", "OP1", "OP2", "RESULT"};
+	const char *columns[] = {"OPCODE", "OP1", "OP2", "RESULT", "EXTENDED"};
 
 	php_printf("op_array(\"%s%s%s\")", (op_array->scope && op_array->scope->name) ? ZSTR_VAL(op_array->scope->name) : "", (op_array->scope && op_array->scope->name) ? "::" : "", op_array->function_name ? ZSTR_VAL(op_array->function_name) : "");
 	zendump_zend_op_array_proto_dump(op_array, 1);
@@ -973,9 +973,7 @@ void zendump_zend_op_dump(zend_op *opcode, zend_op_array *op_array, int column_w
 		zendump_znode_op_dump(&opcode->op1, opcode->op1_type, op_array, column_width);
 	}
 
-	if(opcode->opcode == ZEND_CAST) {
-		php_printf("%-*s", column_width, zendump_get_type_name(opcode->extended_value));
-	} else if(ins_type == IS_JMP_OP2_INS) {
+	if(ins_type == IS_JMP_OP2_INS) {
 		php_printf("%-*d", column_width, OP_JMP_ADDR(opcode, opcode->op2) - opcode - 1);
 	} else if(show_internal_operand && ins_type == IS_SEND_EX_INS) {
 		php_printf("%-*d", column_width, opcode->op2.num);
@@ -984,6 +982,21 @@ void zendump_zend_op_dump(zend_op *opcode, zend_op_array *op_array, int column_w
 	}
 
 	zendump_znode_op_dump(&opcode->result, opcode->result_type, op_array, column_width);
+
+	switch(opcode->opcode) {
+		case ZEND_CAST: {
+			php_printf("%-*s", column_width, zendump_get_type_name(opcode->extended_value));
+			break;
+		}
+		case ZEND_INCLUDE_OR_EVAL: {
+			php_printf("%-*s", column_width, (opcode->extended_value == ZEND_EVAL) ? "eval" : "include");
+			break;
+		}
+		default: {
+			php_printf("%-*d", column_width, opcode->extended_value);
+			break;
+		}
+	}
 	PUTS("\n");
 }
 
