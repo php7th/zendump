@@ -35,7 +35,7 @@ void zendump_properties_info_dump(zend_class_entry *ce);
 void zendump_class_traits_dump(zend_class_entry *ce);
 void zendump_class_interfaces_dump(zend_class_entry *ce);
 
-void zendump_zend_class_entry_dump(zend_class_entry *ce, int show_magic_functions, int column_width, int show_internal_operand)
+void zendump_zend_class_entry_dump(zend_class_entry *ce, int show_magic_functions, int column_width)
 {
 	PUTS(ce->type == ZEND_INTERNAL_CLASS ? "internal" : "user"); // ZEND_USER_CLASS
 	if(ce->name) {
@@ -57,43 +57,43 @@ void zendump_zend_class_entry_dump(zend_class_entry *ce, int show_magic_function
 	PUTS("\n");
 	if(show_magic_functions) {
 		if(ce->constructor) {
-			zendump_zend_function_dump(ce->constructor, column_width, show_internal_operand);
+			zendump_zend_function_dump(ce->constructor, column_width);
 		}
 		if(ce->destructor) {
-			zendump_zend_function_dump(ce->destructor, column_width, show_internal_operand);
+			zendump_zend_function_dump(ce->destructor, column_width);
 		}
 		if(ce->clone) {
-			zendump_zend_function_dump(ce->clone, column_width, show_internal_operand);
+			zendump_zend_function_dump(ce->clone, column_width);
 		}
 		if(ce->__get) {
-			zendump_zend_function_dump(ce->__get, column_width, show_internal_operand);
+			zendump_zend_function_dump(ce->__get, column_width);
 		}
 		if(ce->__set) {
-			zendump_zend_function_dump(ce->__set, column_width, show_internal_operand);
+			zendump_zend_function_dump(ce->__set, column_width);
 		}
 		if(ce->__unset) {
-			zendump_zend_function_dump(ce->__unset, column_width, show_internal_operand);
+			zendump_zend_function_dump(ce->__unset, column_width);
 		}
 		if(ce->__isset) {
-			zendump_zend_function_dump(ce->__isset, column_width, show_internal_operand);
+			zendump_zend_function_dump(ce->__isset, column_width);
 		}
 		if(ce->__call) {
-			zendump_zend_function_dump(ce->__call, column_width, show_internal_operand);
+			zendump_zend_function_dump(ce->__call, column_width);
 		}
 		if(ce->__callstatic) {
-			zendump_zend_function_dump(ce->__callstatic, column_width, show_internal_operand);
+			zendump_zend_function_dump(ce->__callstatic, column_width);
 		}
 		if(ce->__tostring) {
-			zendump_zend_function_dump(ce->__tostring, column_width, show_internal_operand);
+			zendump_zend_function_dump(ce->__tostring, column_width);
 		}
 		if(ce->__debugInfo) {
-			zendump_zend_function_dump(ce->__debugInfo, column_width, show_internal_operand);
+			zendump_zend_function_dump(ce->__debugInfo, column_width);
 		}
 		if(ce->serialize_func) {
-			zendump_zend_function_dump(ce->serialize_func, column_width, show_internal_operand);
+			zendump_zend_function_dump(ce->serialize_func, column_width);
 		}
 		if(ce->unserialize_func) {
-			zendump_zend_function_dump(ce->unserialize_func, column_width, show_internal_operand);
+			zendump_zend_function_dump(ce->unserialize_func, column_width);
 		}
 	}
 }

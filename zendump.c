@@ -245,10 +245,10 @@ void zendump_zend_array_dump(zend_array *arr, int level)
 	}
 }
 
-void zendump_zend_function_dump(zend_function *function, int column_width, int show_internal_operand)
+void zendump_zend_function_dump(zend_function *function, int column_width)
 {
 	if(ZEND_USER_CODE(function->type)) {
-		zendump_zend_op_array_dump(&function->op_array, column_width, show_internal_operand);
+		zendump_zend_op_array_dump(&function->op_array, column_width);
 	} else if(function->type == ZEND_INTERNAL_FUNCTION) {
 		zendump_zend_internal_function_dump(&function->internal_function);
 	}
@@ -384,20 +384,18 @@ PHP_FUNCTION(zendump_literals)
 PHP_FUNCTION(zendump_opcodes)
 {
 	zend_long column_width = 35;
-	zend_long show_internal_operand = 0;
 	zend_execute_data *prev = EX(prev_execute_data);
 
-	ZEND_PARSE_PARAMETERS_START(0, 2)
+	ZEND_PARSE_PARAMETERS_START(0, 1)
 		Z_PARAM_OPTIONAL
 		Z_PARAM_LONG(column_width)
-		Z_PARAM_LONG(show_internal_operand)
 	ZEND_PARSE_PARAMETERS_END();
 
 	if(!prev || !prev->func || prev->func->type != ZEND_USER_FUNCTION) {
 		return;
 	}
 
-	zendump_zend_op_array_dump(&prev->func->op_array, column_width, show_internal_operand);
+	zendump_zend_op_array_dump(&prev->func->op_array, column_width);
 }
 
 PHP_FUNCTION(zendump_function)
@@ -406,13 +404,11 @@ PHP_FUNCTION(zendump_function)
 	char *buf = NULL;
 	size_t buf_len;
 	zend_long column_width = 35;
-	zend_long show_internal_operand = 0;
 
-	ZEND_PARSE_PARAMETERS_START(1, 3)
+	ZEND_PARSE_PARAMETERS_START(1, 2)
 		Z_PARAM_STRING(buf, buf_len)
 		Z_PARAM_OPTIONAL
 		Z_PARAM_LONG(column_width)
-		Z_PARAM_LONG(show_internal_operand)
 	ZEND_PARSE_PARAMETERS_END();
 
 	zendump_string_to_lower(buf, buf_len);
@@ -422,7 +418,7 @@ PHP_FUNCTION(zendump_function)
 		return;
 	}
 
-	zendump_zend_function_dump(Z_FUNC_P(val), column_width, show_internal_operand);
+	zendump_zend_function_dump(Z_FUNC_P(val), column_width);
 }
 
 PHP_FUNCTION(zendump_class)
@@ -432,14 +428,12 @@ PHP_FUNCTION(zendump_class)
 	size_t buf_len;
 	zend_long column_width = 35;
 	zend_long show_magic_functions = 0;
-	zend_long show_internal_operand = 0;
 
-	ZEND_PARSE_PARAMETERS_START(1, 4)
+	ZEND_PARSE_PARAMETERS_START(1, 3)
 		Z_PARAM_STRING(buf, buf_len)
 		Z_PARAM_OPTIONAL
 		Z_PARAM_LONG(show_magic_functions)
 		Z_PARAM_LONG(column_width)
-		Z_PARAM_LONG(show_internal_operand)
 	ZEND_PARSE_PARAMETERS_END();
 
 	zendump_string_to_lower(buf, buf_len);
@@ -449,7 +443,7 @@ PHP_FUNCTION(zendump_class)
 		return;
 	}
 
-	zendump_zend_class_entry_dump(Z_CE_P(val), show_magic_functions, column_width, show_internal_operand);
+	zendump_zend_class_entry_dump(Z_CE_P(val), show_magic_functions, column_width);
 }
 
 PHP_FUNCTION(zendump_method)
@@ -458,14 +452,12 @@ PHP_FUNCTION(zendump_method)
 	char *klass = NULL, *method = NULL;
 	size_t klass_len, method_len;
 	zend_long column_width = 35;
-	zend_long show_internal_operand = 0;
 
-	ZEND_PARSE_PARAMETERS_START(2, 4)
+	ZEND_PARSE_PARAMETERS_START(2, 3)
 		Z_PARAM_STRING(klass, klass_len)
 		Z_PARAM_STRING(method, method_len)
 		Z_PARAM_OPTIONAL
 		Z_PARAM_LONG(column_width)
-		Z_PARAM_LONG(show_internal_operand)
 	ZEND_PARSE_PARAMETERS_END();
 
 	zendump_string_to_lower(klass, klass_len);
@@ -481,7 +473,7 @@ PHP_FUNCTION(zendump_method)
 		return;
 	}
 
-	zendump_zend_function_dump(Z_FUNC_P(val), column_width, show_internal_operand);
+	zendump_zend_function_dump(Z_FUNC_P(val), column_width);
 }
 
 /* {{{ php_zendump_init_globals
@@ -573,27 +565,23 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO(arginfo_zendump_opcodes, 0)
 	ZEND_ARG_INFO(0, column_width)
-	ZEND_ARG_INFO(0, show_internal_operand)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO(arginfo_zendump_function, 0)
 	ZEND_ARG_INFO(0, name)
 	ZEND_ARG_INFO(0, column_width)
-	ZEND_ARG_INFO(0, show_internal_operand)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO(arginfo_zendump_class, 0)
 	ZEND_ARG_INFO(0, name)
 	ZEND_ARG_INFO(0, show_magic_functions)
 	ZEND_ARG_INFO(0, column_width)
-	ZEND_ARG_INFO(0, show_internal_operand)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO(arginfo_zendump_method, 0)
 	ZEND_ARG_INFO(0, class_name)
 	ZEND_ARG_INFO(0, method_name)
 	ZEND_ARG_INFO(0, column_width)
-	ZEND_ARG_INFO(0, show_internal_operand)
 ZEND_END_ARG_INFO()
 
 /* {{{ zendump_functions[]

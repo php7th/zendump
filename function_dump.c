@@ -28,8 +28,8 @@
 #include "php_zendump.h"
 
 void zendump_operand_value(zval *val, int column_width);
-void zendump_znode_op_dump(znode_op *op, zend_uchar type, zend_op_array *op_array, int column_width);
-void zendump_zend_op_dump(zend_op *opcode, zend_op_array *op_array, int column_width, int show_internal_operand);
+void zendump_znode_op_dump(znode_op *op, zend_uchar type, uint32_t flags, zend_op *opcode, zend_op_array *op_array, int column_width);
+void zendump_zend_op_dump(zend_op *opcode, zend_op_array *op_array, int column_width);
 
 void zendump_zend_internal_function_dump(zend_internal_function *internal_function)
 {
@@ -84,7 +84,7 @@ void zendump_zend_internal_function_proto_dump(zend_internal_function *internal_
 	}
 }
 
-void zendump_zend_op_array_dump(zend_op_array *op_array, int column_width, int show_internal_operand)
+void zendump_zend_op_array_dump(zend_op_array *op_array, int column_width)
 {
 	int idx;
 	const char *columns[] = {"OPCODE", "OP1", "OP2", "RESULT", "EXTENDED"};
@@ -105,7 +105,7 @@ void zendump_zend_op_array_dump(zend_op_array *op_array, int column_width, int s
 	PUTS("\n");
 
 	for(idx = 0; idx < op_array->last; ++idx) {
-		zendump_zend_op_dump(op_array->opcodes + idx, op_array, column_width, show_internal_operand);
+		zendump_zend_op_dump(op_array->opcodes + idx, op_array, column_width);
 	}
 }
 
@@ -152,49 +152,15 @@ void zendump_zend_op_array_proto_dump(zend_op_array *op_array, int level)
 	}
 }
 
-void zendump_zend_op_dump(zend_op *opcode, zend_op_array *op_array, int column_width, int show_internal_operand)
+void zendump_zend_op_dump(zend_op *opcode, zend_op_array *op_array, int column_width)
 {
-	uint32_t flags, flag_op1, flag_op2;
+	uint32_t flags = zend_get_opcode_flags(opcode->opcode);
 	const char *op_str = zend_get_opcode_name(opcode->opcode);
 	php_printf("%-*s", column_width, op_str);
 
-	flags = zend_get_opcode_flags(opcode->opcode);
-
-	flag_op1 = ZEND_VM_OP1_FLAGS(flags);
-	if(flag_op1 & 0xf) {
-		zendump_znode_op_dump(&opcode->op1, opcode->op1_type, op_array, column_width);
-	} else {
-		uint32_t flag_op1h = flag_op1 & ZEND_VM_OP_MASK;
-		switch(flag_op1h) {
-			case ZEND_VM_OP_NUM:
-				php_printf("%-*d", column_width, opcode->op1.num);
-				break;
-			case ZEND_VM_OP_JMP_ADDR:
-				php_printf("%-*d", column_width, OP_JMP_ADDR(opcode, opcode->op1) - opcode - 1);
-				break;
-			default:
-				php_printf("%-*c", column_width, ' ');
-		}
-	}
-
-	flag_op2 = ZEND_VM_OP2_FLAGS(flags);
-	if(flag_op2 & 0xf) {
-		zendump_znode_op_dump(&opcode->op2, opcode->op2_type, op_array, column_width);
-	} else {
-		uint32_t flag_op2h = flag_op2 & ZEND_VM_OP_MASK;
-		switch(flag_op2h) {
-			case ZEND_VM_OP_NUM:
-				php_printf("%-*d", column_width, opcode->op2.num);
-				break;
-			case ZEND_VM_OP_JMP_ADDR:
-				php_printf("%-*d", column_width, OP_JMP_ADDR(opcode, opcode->op2) - opcode - 1);
-				break;
-			default:
-				php_printf("%-*c", column_width, ' ');
-		}
-	}
-
-	zendump_znode_op_dump(&opcode->result, opcode->result_type, op_array, column_width);
+	zendump_znode_op_dump(&opcode->op1, opcode->op1_type, ZEND_VM_OP1_FLAGS(flags), opcode, op_array, column_width);
+	zendump_znode_op_dump(&opcode->op2, opcode->op2_type, ZEND_VM_OP2_FLAGS(flags), opcode, op_array, column_width);
+	zendump_znode_op_dump(&opcode->result, opcode->result_type, ZEND_VM_OP_SPEC, opcode, op_array, column_width);
 
 	if(flags & ZEND_VM_EXT_MASK) {
 		switch(flags & ZEND_VM_EXT_MASK) {
@@ -228,35 +194,52 @@ void zendump_zend_op_dump(zend_op *opcode, zend_op_array *op_array, int column_w
 	PUTS("\n");
 }
 
-void zendump_znode_op_dump(znode_op *op, zend_uchar type, zend_op_array *op_array, int column_width)
+void zendump_znode_op_dump(znode_op *op, zend_uchar type, uint32_t flags, zend_op *opcode, zend_op_array *op_array, int column_width)
 {
-	switch(type) {
-		case IS_CONST: {
-			zval *val = (zval*)((char*)op_array->literals + op->constant);
-			zendump_operand_value(val, column_width);
-			break;
+	uint32_t flagh = flags & ZEND_VM_OP_MASK;
+	if(flagh) {
+		switch(flagh) {
+			case ZEND_VM_OP_NUM:
+				php_printf("%-*d", column_width, op->num);
+				break;
+			case ZEND_VM_OP_JMP_ADDR:
+				php_printf("%-*d", column_width, OP_JMP_ADDR(opcode, *op) - opcode - 1);
+				break;
+			default:
+				php_printf("%-*c", column_width, ' ');
 		}
-		case IS_CV: {
-			int index = EX_OFFSET_TO_VAR_IDX(op->var);
-			if(index < op_array->last_var) {
-				zend_string *var = op_array->vars[index];
-				php_printf("$%-*s", column_width - 1, ZSTR_VAL(var));
+	} else {
+		switch(type) {
+			case IS_CONST: {
+				zval *val = (zval*)((char*)op_array->literals + op->constant);
+				zendump_operand_value(val, column_width);
+				break;
 			}
-			break;
-		}
-		case IS_TMP_VAR: {
-			int index = EX_OFFSET_TO_VAR_IDX(op->var) - op_array->last_var;
-			php_printf("#tmp%-*d", column_width - 4, index);
-			break;
-		}
-		case IS_VAR: {
-			int index = EX_OFFSET_TO_VAR_IDX(op->var) - op_array->last_var;
-			php_printf("#var%-*d", column_width - 4, index);
-			break;
-		}
-		case IS_UNUSED: {
-			php_printf("%*c", column_width, ' ');
-			break;
+			case IS_CV: {
+				int index = EX_OFFSET_TO_VAR_IDX(op->var);
+				if(index < op_array->last_var) {
+					zend_string *var = op_array->vars[index];
+					php_printf("$%-*s", column_width - 1, ZSTR_VAL(var));
+				} else {
+					php_printf("%*c", column_width, ' ');
+				}
+				break;
+			}
+			case IS_TMP_VAR: {
+				int index = EX_OFFSET_TO_VAR_IDX(op->var) - op_array->last_var;
+				php_printf("#tmp%-*d", column_width - 4, index);
+				break;
+			}
+			case IS_VAR: {
+				int index = EX_OFFSET_TO_VAR_IDX(op->var) - op_array->last_var;
+				php_printf("#var%-*d", column_width - 4, index);
+				break;
+			}
+			default:
+			case IS_UNUSED: {
+				php_printf("%*c", column_width, ' ');
+				break;
+			}
 		}
 	}
 }
