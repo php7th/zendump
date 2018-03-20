@@ -30,57 +30,21 @@
 void zendump_operand_value(zval *val, int column_width);
 void zendump_znode_op_dump(znode_op *op, zend_uchar type, uint32_t flags, zend_op *opcode, zend_op_array *op_array, int column_width);
 void zendump_zend_op_dump(zend_op *opcode, zend_op_array *op_array, int column_width);
+void zendump_zend_op_array_dump(zend_op_array *op_array, int column_width);
 
-void zendump_zend_internal_function_dump(zend_internal_function *internal_function)
+void zendump_zend_function_dump(zend_function *function, int column_width)
 {
-	php_printf("internal_function(\"%s%s%s\")", (internal_function->scope && internal_function->scope->name) ? ZSTR_VAL(internal_function->scope->name) : "", (internal_function->scope && internal_function->scope->name) ? "::" : "", internal_function->function_name ? ZSTR_VAL(internal_function->function_name) : "");
-	zendump_zend_internal_function_proto_dump(internal_function, 1);
-	php_printf(" handler(0x" ZEND_XLONG_FMT ")", internal_function->handler);
-	if(internal_function->module) {
-		php_printf(" module(%d,\"%s\",\"%s\")\n", internal_function->module->module_number, internal_function->module->name, internal_function->module->version);
-	}
-}
+	php_printf("%s(\"%s%s%s\")", ZEND_USER_CODE(function->type) ? "op_array" : "internal_function", (function->common.scope && function->common.scope->name) ? ZSTR_VAL(function->common.scope->name) : "", (function->common.scope && function->common.scope->name) ? "::" : "", function->common.function_name ? ZSTR_VAL(function->common.function_name) : "");
 
-void zendump_zend_internal_function_proto_dump(zend_internal_function *internal_function, int level)
-{
-	uint32_t idx;
-	uint32_t count = internal_function->num_args;
-	if(!internal_function->function_name) {
-		return;
-	}
-	if(internal_function->fn_flags & ZEND_ACC_VARIADIC) {
-		++count;
-	}
-	if(level > 0) {
-		php_printf("%*c", level, ' ');
-	}
-	php_printf("%s%s(", (internal_function->fn_flags & ZEND_ACC_RETURN_REFERENCE) ? "&" : "", ZSTR_VAL(internal_function->function_name));
-	for(idx = 0; idx < count; ++idx) {
-		zend_internal_arg_info *info = internal_function->arg_info + idx;
-		if(info->name) {
-			const char *type = NULL;
-			if(internal_function->fn_flags & ZEND_ACC_HAS_TYPE_HINTS) {
-#if PHP_API_VERSION >= 20170718
-				if(ZEND_TYPE_IS_SET(info->type)) {
-					if(ZEND_TYPE_IS_CODE(info->type)) {
-						type = zendump_get_type_name(ZEND_TYPE_CODE(info->type));
-					} else if(ZEND_TYPE_IS_CLASS(info->type)) {
-						type = ZSTR_VAL(ZEND_TYPE_NAME(info->type));
-					}
-				}
-#else
-				if(info->type_hint == IS_OBJECT) {
-					type = info->class_name;
-				} else if(info->type_hint != IS_UNDEF) {
-					type = zendump_get_type_name(info->type_hint);
-				}
-#endif
-			}
-			php_printf("%s%s%s%s%s$%s", idx ? ", " : "", info->is_variadic ? "..." : "", type ? type : "", type ? " " : "", info->pass_by_reference ? "&" : "", info->name);
+	zendump_zend_function_proto_dump(function, 1);
+
+	if(ZEND_USER_CODE(function->type)) {
+		zendump_zend_op_array_dump(&function->op_array, column_width);
+	} else if(function->type == ZEND_INTERNAL_FUNCTION) {
+		php_printf(" handler(0x" ZEND_XLONG_FMT ")", function->internal_function.handler);
+		if(function->internal_function.module) {
+			php_printf(" module(%d,\"%s\",\"%s\")\n", function->internal_function.module->module_number, function->internal_function.module->name, function->internal_function.module->version);
 		}
-	}
-	if(internal_function->function_name) {
-		PUTS(")");
 	}
 }
 
@@ -89,8 +53,6 @@ void zendump_zend_op_array_dump(zend_op_array *op_array, int column_width)
 	int idx;
 	const char *columns[] = {"OPCODE", "OP1", "OP2", "RESULT", "EXTENDED"};
 
-	php_printf("op_array(\"%s%s%s\")", (op_array->scope && op_array->scope->name) ? ZSTR_VAL(op_array->scope->name) : "", (op_array->scope && op_array->scope->name) ? "::" : "", op_array->function_name ? ZSTR_VAL(op_array->function_name) : "");
-	zendump_zend_op_array_proto_dump(op_array, 1);
 	if(op_array->refcount) {
 		php_printf(" refcount(%u)", *op_array->refcount);
 	}
@@ -109,25 +71,25 @@ void zendump_zend_op_array_dump(zend_op_array *op_array, int column_width)
 	}
 }
 
-void zendump_zend_op_array_proto_dump(zend_op_array *op_array, int level)
+void zendump_zend_function_proto_dump(zend_function *function, int level)
 {
 	uint32_t idx;
-	uint32_t count = op_array->num_args;
-	if(!op_array->function_name) {
+	uint32_t count = function->common.num_args;
+	if(!function->common.function_name) {
 		return;
 	}
-	if(op_array->fn_flags & ZEND_ACC_VARIADIC) {
+	if(function->common.fn_flags & ZEND_ACC_VARIADIC) {
 		++count;
 	}
 	if(level > 0) {
 		php_printf("%*c", level, ' ');
 	}
-	php_printf("%s%s(", (op_array->fn_flags & ZEND_ACC_RETURN_REFERENCE) ? "&" : "", ZSTR_VAL(op_array->function_name));
+	php_printf("%s%s(", (function->common.fn_flags & ZEND_ACC_RETURN_REFERENCE) ? "&" : "", ZSTR_VAL(function->common.function_name));
 	for(idx = 0; idx < count; ++idx) {
-		zend_arg_info *info = op_array->arg_info + idx;
+		zend_arg_info *info = function->common.arg_info + idx;
 		if(info->name) {
 			const char *type = NULL;
-			if(op_array->fn_flags & ZEND_ACC_HAS_TYPE_HINTS) {
+			if(function->common.fn_flags & ZEND_ACC_HAS_TYPE_HINTS) {
 #if PHP_API_VERSION >= 20170718
 				if(ZEND_TYPE_IS_SET(info->type)) {
 					if(ZEND_TYPE_IS_CODE(info->type)) {
@@ -138,18 +100,20 @@ void zendump_zend_op_array_proto_dump(zend_op_array *op_array, int level)
 				}
 #else
 				if(info->type_hint == IS_OBJECT && info->class_name) {
-					type = ZSTR_VAL(info->class_name);
+					if(ZEND_USER_CODE(function->type)) {
+						type = ZSTR_VAL(info->class_name);
+					} else {
+						type = info->class_name;
+					}
 				} else if(info->type_hint != IS_UNDEF) {
 					type = zendump_get_type_name(info->type_hint);
 				}
 #endif
 			}
-			php_printf("%s%s%s%s%s$%s", idx ? ", " : "", info->is_variadic ? "..." : "", type ? type : "", type ? " " : "", info->pass_by_reference ? "&" : "", ZSTR_VAL(info->name));
+			php_printf("%s%s%s%s%s$%s", idx ? ", " : "", info->is_variadic ? "..." : "", type ? type : "", type ? " " : "", info->pass_by_reference ? "&" : "", (ZEND_USER_CODE(function->type) ? ZSTR_VAL(info->name) : (const char*)info->name));
 		}
 	}
-	if(op_array->function_name) {
-		PUTS(")");
-	}
+	PUTS(")");
 }
 
 void zendump_zend_op_dump(zend_op *opcode, zend_op_array *op_array, int column_width)
@@ -171,13 +135,10 @@ void zendump_zend_op_dump(zend_op *opcode, zend_op_array *op_array, int column_w
 				php_printf("%-*d", column_width, opcode->extended_value / sizeof(zend_op));
 				break;
 			case ZEND_VM_EXT_DIM_OBJ:
-				php_printf("%-*s", column_width, "DIM_OBJ");
 				break;
 			case ZEND_VM_EXT_CLASS_FETCH:
-				php_printf("%-*s", column_width, "CLASS_FETCH");
 				break;
 			case ZEND_VM_EXT_CONST_FETCH:
-				php_printf("%-*s", column_width, "CONST_FETCH");
 				break;
 			case ZEND_VM_EXT_TYPE:
 				php_printf("%-*s", column_width, zendump_get_type_name(opcode->extended_value));
@@ -269,22 +230,16 @@ void zendump_znode_op_dump(znode_op *op, zend_uchar type, uint32_t flags, zend_o
 				php_printf("%-*d", column_width, OP_JMP_ADDR(opcode, *op) - opcode - 1);
 				break;
 			case ZEND_VM_OP_TRY_CATCH:
-				php_printf("%-*s", column_width, "TRY_CATCH");
 				break;
 			case ZEND_VM_OP_LIVE_RANGE:
-				php_printf("%-*s", column_width, "LIVE_RANGE");
 				break;
 			case ZEND_VM_OP_THIS:
-				php_printf("%-*s", column_width, "OP_THIS");
 				break;
 			case ZEND_VM_OP_NEXT:
-				php_printf("%-*s", column_width, "OP_NEXT");
 				break;
 			case ZEND_VM_OP_CLASS_FETCH:
-				php_printf("%-*s", column_width, "CLASS_FETCH");
 				break;
 			case ZEND_VM_OP_CONSTRUCTOR:
-				php_printf("%-*s", column_width, "CONSTRUCTOR");
 				break;
 			default:
 				php_printf("%-*c", column_width, ' ');

@@ -320,21 +320,19 @@ void zendump_function_table_dump(zend_class_entry *ce)
 		if(prototype && prototype->common.scope && prototype->common.scope->name) {
 			php_printf("%s::", ZSTR_VAL(prototype->common.scope->name));
 		}
-		if(func->type == ZEND_USER_FUNCTION) {
-			zendump_zend_op_array_proto_dump(&func->op_array, 0);
-		} else {
-			zendump_zend_internal_function_proto_dump(&func->internal_function, 0);
-		}
+		zendump_zend_function_proto_dump(func, 0);
 		PUTS(";\n");
 	}
 	php_printf("%*c}\n", INDENT_SIZE, ' ');
 }
 
-#if PHP_API_VERSION >= 20160303
 void zendump_constants_table_dump(zend_class_entry *ce)
 {
 	uint32_t idx;
+#if PHP_API_VERSION >= 20160303
 	zend_class_constant *info;
+#endif
+
 	if(!ce->constants_table.nNumOfElements) {
 		return;
 	}
@@ -344,37 +342,23 @@ void zendump_constants_table_dump(zend_class_entry *ce)
 		if(Z_TYPE(bucket->val) == IS_UNDEF) {
 			continue;
 		}
-		info = (zend_class_constant*)Z_PTR(bucket->val);
 		php_printf("%*c", INDENT_SIZE << 1, ' ');
+
+#if PHP_API_VERSION >= 20160303
+		info = (zend_class_constant*)Z_PTR(bucket->val);
 		zendump_access_flags_dump(info->value.u2.access_flags);
 		if(bucket->key) {
 			php_printf("%s%s%s%s%s;", ZSTR_VAL(bucket->key), (info->ce && info->ce->name) ? " => " : "", (info->ce && info->ce->name) ? ZSTR_VAL(info->ce->name) : "", (info->ce && info->ce->name) ? "::" : "", ZSTR_VAL(bucket->key));
 		}
 		PUTS(" value : ");
 		zendump_zval_dump(&info->value, 0);
-	}
-	php_printf("%*c}\n", INDENT_SIZE, ' ');
-}
 #else
-void zendump_constants_table_dump(zend_class_entry *ce)
-{
-	uint32_t idx;
-	if(!ce->constants_table.nNumOfElements) {
-		return;
-	}
-	php_printf("%*cconstants(%u) {\n", INDENT_SIZE, ' ', ce->constants_table.nNumOfElements);
-	for(idx = 0; idx < ce->constants_table.nNumUsed; ++idx) {
-		Bucket *bucket = ce->constants_table.arData + idx;
-		if(Z_TYPE(bucket->val) == IS_UNDEF) {
-			continue;
-		}
-		php_printf("%*c", INDENT_SIZE << 1, ' ');
 		if(bucket->key) {
 			php_printf("%s;", ZSTR_VAL(bucket->key));
 		}
 		PUTS(" value : ");
 		zendump_zval_dump(&bucket->val, 0);
+#endif
 	}
 	php_printf("%*c}\n", INDENT_SIZE, ' ');
 }
-#endif

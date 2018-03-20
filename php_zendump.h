@@ -92,10 +92,7 @@ zend_string *zendump_unescape_zend_string(zend_string *org, int persistent);
 void zendump_zval_dump(zval *val, int level);
 void zendump_zend_array_dump(zend_array *arr, int level);
 
-void zendump_zend_internal_function_proto_dump(zend_internal_function *internal_function, int level);
-void zendump_zend_op_array_proto_dump(zend_op_array *op_array, int level);
-void zendump_zend_internal_function_dump(zend_internal_function *internal_function);
-void zendump_zend_op_array_dump(zend_op_array *op_array, int column_width);
+void zendump_zend_function_proto_dump(zend_function *function, int level);
 void zendump_zend_function_dump(zend_function *function, int column_width);
 
 void zendump_zend_class_entry_dump(zend_class_entry *ce, int show_magic_functions, int column_width);

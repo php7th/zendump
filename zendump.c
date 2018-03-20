@@ -222,7 +222,7 @@ again:
 			val = Z_INDIRECT_P(val);
 			goto again;
 		default:
-			php_printf(": unknown(%u)\n", Z_TYPE_P(val));
+			php_printf(": unknown type(%u)\n", Z_TYPE_P(val));
 			break;
 	}
 }
@@ -242,15 +242,6 @@ void zendump_zend_array_dump(zend_array *arr, int level)
 			}
 			zendump_zval_dump(&bucket->val, level);
 		}
-	}
-}
-
-void zendump_zend_function_dump(zend_function *function, int column_width)
-{
-	if(ZEND_USER_CODE(function->type)) {
-		zendump_zend_op_array_dump(&function->op_array, column_width);
-	} else if(function->type == ZEND_INTERNAL_FUNCTION) {
-		zendump_zend_internal_function_dump(&function->internal_function);
 	}
 }
 
@@ -395,7 +386,7 @@ PHP_FUNCTION(zendump_opcodes)
 		return;
 	}
 
-	zendump_zend_op_array_dump(&prev->func->op_array, column_width);
+	zendump_zend_function_dump(prev->func, column_width);
 }
 
 PHP_FUNCTION(zendump_function)
@@ -611,8 +602,8 @@ zend_module_entry zendump_module_entry = {
 	zendump_functions,
 	PHP_MINIT(zendump),
 	PHP_MSHUTDOWN(zendump),
-	PHP_RINIT(zendump),		/* Replace with NULL if there's nothing to do at request start */
-	PHP_RSHUTDOWN(zendump),	/* Replace with NULL if there's nothing to do at request end */
+	NULL, // PHP_RINIT(zendump),		/* Replace with NULL if there's nothing to do at request start */
+	NULL, // PHP_RSHUTDOWN(zendump),	/* Replace with NULL if there's nothing to do at request end */
 	PHP_MINFO(zendump),
 	PHP_ZENDUMP_VERSION,
 	STANDARD_MODULE_PROPERTIES
