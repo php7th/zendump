@@ -162,11 +162,11 @@ void zendump_zend_op_dump(zend_op *opcode, zend_op_array *op_array, int column_w
 				} else if(opcode->extended_value == ZEND_RETURNS_FUNCTION) {
 					php_printf("%-*s", column_width, "function");
 				} else {
-					php_printf("%-*c", column_width, ' ');
+					php_printf("%*c", column_width, ' ');
 				}
 				break;
 			default: {
-				php_printf("%-*c", column_width, ' ');
+				php_printf("%*c", column_width, ' ');
 				if(flags & 0x00ff0000) {
 					if(flags & ZEND_VM_EXT_VAR_FETCH) {
 					}
@@ -182,7 +182,7 @@ void zendump_zend_op_dump(zend_op *opcode, zend_op_array *op_array, int column_w
 			}
 		}
 	} else {
-		php_printf("%-*c", column_width, ' ');
+		php_printf("%*c", column_width, ' ');
 	}
 	PUTS("\n");
 }
@@ -191,7 +191,13 @@ void zendump_znode_op_dump(znode_op *op, zend_uchar type, uint32_t flags, zend_o
 {
 	switch(type) {
 		case IS_CONST: {
+#if SIZEOF_SIZE_T == 8
 			zval *val = (zval*)((char*)op_array->literals + op->constant);
+#elif SIZEOF_SIZE_T == 4
+			zval *val = op->zv;
+#else
+# error "Unknown SIZEOF_SIZE_T"
+#endif
 			zendump_operand_value(val, column_width);
 			break;
 		}
@@ -218,7 +224,7 @@ void zendump_znode_op_dump(znode_op *op, zend_uchar type, uint32_t flags, zend_o
 		case IS_UNUSED:
 			break;
 		default:
-			php_printf("%-*c", column_width, ' ');
+			php_printf("%*c", column_width, ' ');
 	}
 	if(type == IS_UNUSED) {
 		uint32_t flagh = flags & ZEND_VM_OP_MASK;
@@ -242,7 +248,7 @@ void zendump_znode_op_dump(znode_op *op, zend_uchar type, uint32_t flags, zend_o
 			case ZEND_VM_OP_CONSTRUCTOR:
 				break;
 			default:
-				php_printf("%-*c", column_width, ' ');
+				php_printf("%*c", column_width, ' ');
 		}
 	}
 }

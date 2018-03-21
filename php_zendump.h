@@ -38,10 +38,6 @@ extern zend_module_entry zendump_module_entry;
 #include "TSRM.h"
 #endif
 
-#if SIZEOF_SIZE_T != 8
-# error "Currently only supported on 64-bit platform"
-#endif
-
 #ifdef ZEND_ENABLE_ZVAL_LONG64
 # define ZEND_XLONG_FMT_SPEC PRIx64
 #else

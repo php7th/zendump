@@ -124,9 +124,18 @@ again:
 		case IS_LONG:
 			php_printf(": long(" ZEND_LONG_FMT ")\n", Z_LVAL_P(val));
 			break;
-		case IS_DOUBLE:
+		case IS_DOUBLE: {
+#if SIZEOF_SIZE_T == 8
 			php_printf(": double(%.*G) hex(" ZEND_XLONG_FMT ")\n", (int) EG(precision), Z_DVAL_P(val), Z_LVAL_P(val));
+#elif SIZEOF_SIZE_T == 4
+			uint64_t *dval = (uint64_t*)&Z_DVAL_P(val);
+			uint32_t high = (*dval) >> 32, low = (uint32_t)(*dval);
+			php_printf(": double(%.*G) hex(" ZEND_XLONG_FMT ZEND_XLONG_FMT ")\n", (int) EG(precision), Z_DVAL_P(val), high, low);
+#else
+# error "Unknown SIZEOF_SIZE_T"
+#endif
 			break;
+		}
 		case IS_STRING: {
 			zend_string *str = zendump_unescape_zend_string(Z_STR_P(val), 0);
 			php_printf("-> string(%zd,\"", Z_STRLEN_P(val));
