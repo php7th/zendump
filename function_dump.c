@@ -103,7 +103,7 @@ void zendump_zend_function_proto_dump(zend_function *function, int level)
 					if(ZEND_USER_CODE(function->type)) {
 						type = ZSTR_VAL(info->class_name);
 					} else {
-						type = info->class_name;
+						type = (const char*)info->class_name;
 					}
 				} else if(info->type_hint != IS_UNDEF) {
 					type = zendump_get_type_name(info->type_hint);
@@ -116,6 +116,19 @@ void zendump_zend_function_proto_dump(zend_function *function, int level)
 	PUTS(")");
 }
 
+#define DUMP_EVAL_KEYWORD_BY_ENTENDED_VALUE(extended_value, column_width) do{\
+	const char* names[] = {NULL, "eval", "include", "include_once", "require", "require_once"};\
+	uint32_t idx = 0, value = (extended_value);\
+	while(value) {\
+		++idx;\
+		value >>= 1;\
+	}\
+	if(idx > 5) {\
+		idx = 0;\
+	}\
+	php_printf("%-*s", (column_width), names[idx]);\
+} while(0)
+
 void zendump_zend_op_dump(zend_op *opcode, zend_op_array *op_array, int column_width)
 {
 	uint32_t flags = zend_get_opcode_flags(opcode->opcode);
@@ -126,6 +139,7 @@ void zendump_zend_op_dump(zend_op *opcode, zend_op_array *op_array, int column_w
 	zendump_znode_op_dump(&opcode->op2, opcode->op2_type, ZEND_VM_OP2_FLAGS(flags), opcode, op_array, column_width);
 	zendump_znode_op_dump(&opcode->result, opcode->result_type, 0, opcode, op_array, column_width);
 
+#if PHP_API_VERSION >= 20160303
 	if(flags & ZEND_VM_EXT_MASK) {
 		switch(flags & ZEND_VM_EXT_MASK) {
 			case ZEND_VM_EXT_NUM:
@@ -144,16 +158,7 @@ void zendump_zend_op_dump(zend_op *opcode, zend_op_array *op_array, int column_w
 				php_printf("%-*s", column_width, zendump_get_type_name(opcode->extended_value));
 				break;
 			case ZEND_VM_EXT_EVAL: {
-				const char* names[] = {NULL, "eval", "include", "include_once", "require", "require_once"};
-				uint32_t idx = 0, value = opcode->extended_value;
-				while(value) {
-					++idx;
-					value >>= 1;
-				}
-				if(idx > 5) {
-					idx = 0;
-				}
-				php_printf("%-*s", column_width, names[idx]);
+				DUMP_EVAL_KEYWORD_BY_ENTENDED_VALUE(opcode->extended_value, column_width);
 				break;
 			}
 			case ZEND_VM_EXT_SRC:
@@ -184,6 +189,48 @@ void zendump_zend_op_dump(zend_op *opcode, zend_op_array *op_array, int column_w
 	} else {
 		php_printf("%*c", column_width, ' ');
 	}
+#else
+	if(opcode->opcode == ZEND_INCLUDE_OR_EVAL) {
+		DUMP_EVAL_KEYWORD_BY_ENTENDED_VALUE(opcode->extended_value, column_width);
+	} else if(opcode->opcode == ZEND_CAST || opcode->opcode == ZEND_TYPE_CHECK) {
+		php_printf("%-*s", column_width, zendump_get_type_name(opcode->extended_value));
+	} else if(opcode->opcode == ZEND_JMPZNZ ||
+		opcode->opcode == ZEND_CATCH ||
+		opcode->opcode == ZEND_FE_FETCH_R ||
+		opcode->opcode == ZEND_FE_FETCH_RW ||
+		opcode->opcode == ZEND_DECLARE_ANON_CLASS ||
+		opcode->opcode == ZEND_DECLARE_ANON_INHERITED_CLASS) { // ZEND_SWITCH_LONG ZEND_SWITCH_STRING
+		php_printf("%-*d", column_width, opcode->extended_value / sizeof(zend_op));
+	} else if(opcode->opcode == ZEND_FETCH_DIM_FUNC_ARG ||
+		opcode->opcode == ZEND_FETCH_OBJ_FUNC_ARG ||
+		opcode->opcode == ZEND_ROPE_INIT ||
+		opcode->opcode == ZEND_ROPE_ADD ||
+		opcode->opcode == ZEND_ROPE_END ||
+		opcode->opcode == ZEND_INIT_METHOD_CALL ||
+		opcode->opcode == ZEND_INIT_STATIC_METHOD_CALL ||
+		opcode->opcode == ZEND_INIT_FCALL_BY_NAME ||
+		opcode->opcode == ZEND_INIT_DYNAMIC_CALL ||
+		opcode->opcode == ZEND_INIT_USER_CALL ||
+		opcode->opcode == ZEND_INIT_NS_FCALL_BY_NAME ||
+		opcode->opcode == ZEND_INIT_FCALL ||
+		opcode->opcode == ZEND_SEND_ARRAY ||
+		opcode->opcode == ZEND_NEW ||
+		opcode->opcode == ZEND_TICKS) { // ZEND_FETCH_STATIC_PROP_FUNC_ARG ZEND_IN_ARRAY
+		php_printf("%-*d", column_width, opcode->extended_value);
+	} else if(opcode->opcode == ZEND_ASSIGN_REF ||
+		opcode->opcode == ZEND_RETURN_BY_REF ||
+		opcode->opcode == ZEND_YIELD) {
+		if(opcode->extended_value == ZEND_RETURNS_VALUE) {
+			php_printf("%-*s", column_width, "value");
+		} else if(opcode->extended_value == ZEND_RETURNS_FUNCTION) {
+			php_printf("%-*s", column_width, "function");
+		} else {
+			php_printf("%*c", column_width, ' ');
+		}
+	} else {
+		php_printf("%*c", column_width, ' ');
+	}
+#endif
 	PUTS("\n");
 }
 
@@ -227,6 +274,7 @@ void zendump_znode_op_dump(znode_op *op, zend_uchar type, uint32_t flags, zend_o
 			php_printf("%*c", column_width, ' ');
 	}
 	if(type == IS_UNUSED) {
+#if PHP_API_VERSION >= 20160303
 		uint32_t flagh = flags & ZEND_VM_OP_MASK;
 		switch(flagh) {
 			case ZEND_VM_OP_NUM:
@@ -250,6 +298,36 @@ void zendump_znode_op_dump(znode_op *op, zend_uchar type, uint32_t flags, zend_o
 			default:
 				php_printf("%*c", column_width, ' ');
 		}
+#else
+		if((op == &opcode->op1 && (opcode->opcode == ZEND_JMP ||
+				opcode->opcode == ZEND_FAST_CALL)) ||
+			(op == &opcode->op2 && (opcode->opcode == ZEND_JMPZ ||
+				opcode->opcode == ZEND_JMPNZ ||
+				opcode->opcode == ZEND_JMPZNZ ||
+				opcode->opcode == ZEND_JMPZ_EX ||
+				opcode->opcode == ZEND_JMPNZ_EX ||
+				opcode->opcode == ZEND_JMP_SET ||
+				opcode->opcode == ZEND_FE_RESET_R ||
+				opcode->opcode == ZEND_FE_RESET_RW ||
+				opcode->opcode == ZEND_COALESCE ||
+				opcode->opcode == ZEND_ASSERT_CHECK))) {
+			php_printf("%-*d", column_width, OP_JMP_ADDR(opcode, *op) - opcode - 1);
+		} else if((op == &opcode->op1 && (opcode->opcode == ZEND_RECV ||
+				opcode->opcode == ZEND_RECV_INIT ||
+				opcode->opcode == ZEND_RECV_VARIADIC ||
+				opcode->opcode == ZEND_INIT_FCALL)) ||
+			(op == &opcode->op2 && (opcode->opcode == ZEND_SEND_VAL_EX ||
+				opcode->opcode == ZEND_SEND_VAR_EX ||
+				opcode->opcode == ZEND_SEND_VAL ||
+				opcode->opcode == ZEND_SEND_VAR ||
+				opcode->opcode == ZEND_SEND_VAR_NO_REF ||
+				opcode->opcode == ZEND_SEND_REF ||
+				opcode->opcode == ZEND_SEND_USER))) { // ZEND_SEND_VAR_NO_REF_EX
+			php_printf("%-*d", column_width, op->num);
+		} else {
+			php_printf("%*c", column_width, ' ');
+		}
+#endif
 	}
 }
 

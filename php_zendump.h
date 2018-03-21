@@ -55,6 +55,14 @@ extern zend_module_entry zendump_module_entry;
 # endif
 #endif
 
+#if PHP_API_VERSION < 20160303
+uint32_t zend_get_opcode_flags(zend_uchar opcode) {
+  return 0;
+}
+#define ZEND_VM_OP1_FLAGS(f) (f)
+#define ZEND_VM_OP2_FLAGS(f) (f)
+#endif
+
 #define ARRAY_LENGTH(a) (sizeof(a)/sizeof(a[0]))
 
 #define EX_OFFSET_TO_VAR_IDX(offset) ((zval*)((zend_long)offset - sizeof(zend_execute_data)) - (zval*)0)
