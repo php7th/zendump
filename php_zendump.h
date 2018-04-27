@@ -56,11 +56,9 @@ extern zend_module_entry zendump_module_entry;
 #endif
 
 #if PHP_API_VERSION < 20160303
-uint32_t zend_get_opcode_flags(zend_uchar opcode) {
-  return 0;
-}
-#define ZEND_VM_OP1_FLAGS(f) (f)
-#define ZEND_VM_OP2_FLAGS(f) (f)
+# define zend_get_opcode_flags(opcode) (0)
+# define ZEND_VM_OP1_FLAGS(f) (f)
+# define ZEND_VM_OP2_FLAGS(f) (f)
 #endif
 
 #define ARRAY_LENGTH(a) (sizeof(a)/sizeof(a[0]))
@@ -102,6 +100,8 @@ void zendump_zend_function_dump(zend_function *function, int column_width);
 void zendump_zend_class_entry_dump(zend_class_entry *ce, int show_magic_functions, int column_width);
 void zendump_static_properties_dump(zend_class_entry *ce, int level);
 void zendump_properties_dump(zend_object *obj, int level);
+
+size_t zendump_errorf(const char *format, ...);
 
 #endif	/* PHP_ZENDUMP_H */
 

@@ -172,22 +172,20 @@ void zendump_zend_op_dump(zend_op *opcode, zend_op_array *op_array, int column_w
 				break;
 			default: {
 				php_printf("%*c", column_width, ' ');
-				if(flags & 0x00ff0000) {
-					if(flags & ZEND_VM_EXT_VAR_FETCH) {
-					}
-					if(flags & ZEND_VM_EXT_ISSET) {
-					}
-					if(flags & ZEND_VM_EXT_ARG_NUM) {
-					}
-					if(flags & ZEND_VM_EXT_ARRAY_INIT) {
-					}
-					if(flags & ZEND_VM_EXT_REF) {
-					}
-				}
 			}
 		}
 	} else {
-		php_printf("%*c", column_width, ' ');
+		if(flags & ZEND_VM_EXT_ISSET) {
+			if(opcode->extended_value & ZEND_ISSET) {
+				php_printf("isset%*c", column_width - 5, ' ');
+			} else /* if (opline->extended_value & ZEND_ISEMPTY) */ {
+				php_printf("empty%*c", column_width - 5, ' ');
+			}
+		} else {
+			if((flags & ZEND_VM_EXT_VAR_FETCH) || (flags & ZEND_VM_EXT_ARG_NUM) || (flags & ZEND_VM_EXT_ARRAY_INIT) || (flags & ZEND_VM_EXT_REF)) {
+			}
+			php_printf("%*c", column_width, ' ');
+		}
 	}
 #else
 	if(opcode->opcode == ZEND_INCLUDE_OR_EVAL) {
@@ -226,6 +224,14 @@ void zendump_zend_op_dump(zend_op *opcode, zend_op_array *op_array, int column_w
 			php_printf("%-*s", column_width, "function");
 		} else {
 			php_printf("%*c", column_width, ' ');
+		}
+	} else if(opcode->opcode == ZEND_ISSET_ISEMPTY_VAR ||
+		opcode->opcode == ZEND_ISSET_ISEMPTY_DIM_OBJ ||
+		opcode->opcode == ZEND_ISSET_ISEMPTY_PROP_OBJ) {
+		if(opcode->extended_value & ZEND_ISSET) {
+			php_printf("isset%*c", column_width - 5, ' ');
+		} else /* if (opline->extended_value & ZEND_ISEMPTY) */ {
+			php_printf("empty%*c", column_width - 5, ' ');
 		}
 	} else {
 		php_printf("%*c", column_width, ' ');
