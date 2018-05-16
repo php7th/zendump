@@ -243,9 +243,13 @@ void zendump_zend_array_dump(zend_array *arr, int level)
 		Bucket *bucket = arr->arData + idx;
 		if(Z_TYPE(bucket->val) != IS_UNDEF) {
 			if(bucket->key) {
+				zend_string *str = zendump_unescape_zend_string(bucket->key, 0);
 				php_printf("%*c\"", level, ' ');
-				PHPWRITE(ZSTR_VAL(bucket->key), ZSTR_LEN(bucket->key));
+				PHPWRITE(ZSTR_VAL(str), ZSTR_LEN(str));
 				PUTS("\" =>\n");
+				if(str != bucket->key) {
+					zend_string_release(str);
+				}
 			} else {
 				php_printf("%*c[%d] =>\n", level, ' ', bucket->h);
 			}

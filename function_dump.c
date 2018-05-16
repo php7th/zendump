@@ -38,6 +38,8 @@ void zendump_zend_function_dump(zend_function *function, int column_width)
 
 	zendump_zend_function_proto_dump(function, 1);
 
+	php_printf(" flags(0x%I32x)", function->common.fn_flags);
+
 	if(ZEND_USER_CODE(function->type)) {
 		zendump_zend_op_array_dump(&function->op_array, column_width);
 	} else if(function->type == ZEND_INTERNAL_FUNCTION) {
@@ -281,6 +283,7 @@ void zendump_znode_op_dump(znode_op *op, zend_uchar type, uint32_t flags, zend_o
 	}
 	if(type == IS_UNUSED) {
 #if PHP_API_VERSION >= 20160303
+		int padding = 0;
 		uint32_t flagh = flags & ZEND_VM_OP_MASK;
 		switch(flagh) {
 			case ZEND_VM_OP_NUM:
@@ -290,19 +293,22 @@ void zendump_znode_op_dump(znode_op *op, zend_uchar type, uint32_t flags, zend_o
 				php_printf("%-*d", column_width, OP_JMP_ADDR(opcode, *op) - opcode - 1);
 				break;
 			case ZEND_VM_OP_TRY_CATCH:
-				break;
 			case ZEND_VM_OP_LIVE_RANGE:
-				break;
 			case ZEND_VM_OP_THIS:
-				break;
 			case ZEND_VM_OP_NEXT:
+				padding = column_width;
 				break;
-			case ZEND_VM_OP_CLASS_FETCH:
+			case ZEND_VM_OP_CLASS_FETCH: {
+				const char *fetch_type[] = {"default", "self", "parent", "static", "auto", "interface", "trait"};
+				php_printf("%-*s", column_width, fetch_type[op->num & ZEND_FETCH_CLASS_MASK]);
 				break;
+			}
 			case ZEND_VM_OP_CONSTRUCTOR:
-				break;
 			default:
-				php_printf("%*c", column_width, ' ');
+				padding = column_width;
+		}
+		if(padding) {
+			php_printf("%*c", padding, ' ');
 		}
 #else
 		if((op == &opcode->op1 && (opcode->opcode == ZEND_JMP ||
