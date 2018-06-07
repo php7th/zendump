@@ -27,21 +27,18 @@
 #include "ext/standard/info.h"
 #include "php_zendump.h"
 
-/* If you declare any globals in php_zendump.h uncomment this:
 ZEND_DECLARE_MODULE_GLOBALS(zendump)
-*/
 
 /* True global resources - no need for thread safety here */
 // static int le_zendump;
 
 /* {{{ PHP_INI
  */
-/* Remove comments and fill if you need to have entries in php.ini
 PHP_INI_BEGIN()
-	STD_PHP_INI_ENTRY("zendump.global_value",      "42", PHP_INI_ALL, OnUpdateLong, global_value, zend_zendump_globals, zendump_globals)
+	STD_PHP_INI_ENTRY("zendump.enable_trace",  "false",  PHP_INI_ALL, OnUpdateBool,   enable_trace,  zend_zendump_globals, zendump_globals)
+	STD_PHP_INI_ENTRY("zendump.global_value",  "0",      PHP_INI_ALL, OnUpdateLong,   global_value,  zend_zendump_globals, zendump_globals)
 	STD_PHP_INI_ENTRY("zendump.global_string", "foobar", PHP_INI_ALL, OnUpdateString, global_string, zend_zendump_globals, zendump_globals)
 PHP_INI_END()
-*/
 /* }}} */
 
 void zendump_string_to_lower(char *buf, int len);
@@ -140,7 +137,12 @@ again:
 			zend_string *str = zendump_unescape_zend_string(Z_STR_P(val), 0);
 			php_printf("-> string(%zd,\"", Z_STRLEN_P(val));
 			PHPWRITE(ZSTR_VAL(str), ZSTR_LEN(str));
-			php_printf("\") addr(0x" ZEND_XLONG_FMT ") refcount(%u)\n", Z_STR_P(val), Z_REFCOUNTED_P(val) ? Z_REFCOUNT_P(val) : 1);
+			php_printf("\") addr(0x" ZEND_XLONG_FMT ")", Z_STR_P(val));
+			if(IS_INTERNED(Z_STR_P(val))) {
+				PUTS(" interned\n");
+			} else {
+				php_printf(" refcount(%u)\n", Z_REFCOUNTED_P(val) ? Z_REFCOUNT_P(val) : 1);
+			}
 			if(str != Z_STR_P(val)) {
 				zend_string_release(str);
 			}
@@ -244,9 +246,12 @@ void zendump_zend_array_dump(zend_array *arr, int level)
 		if(Z_TYPE(bucket->val) != IS_UNDEF) {
 			if(bucket->key) {
 				zend_string *str = zendump_unescape_zend_string(bucket->key, 0);
-				php_printf("%*c\"", level, ' ');
-				PHPWRITE(ZSTR_VAL(str), ZSTR_LEN(str));
-				PUTS("\" =>\n");
+				php_printf("%*c[\"%s\"] len(%zd) addr(0x" ZEND_XLONG_FMT ")", level, ' ', ZSTR_VAL(str), ZSTR_LEN(bucket->key), bucket->key);
+				if(IS_INTERNED(bucket->key)) {
+					PUTS(" interned =>\n");
+				} else {
+					php_printf(" refcount(%u) =>\n", GC_REFCOUNT(bucket->key));
+				}
 				if(str != bucket->key) {
 					zend_string_release(str);
 				}
@@ -481,23 +486,29 @@ PHP_FUNCTION(zendump_method)
 }
 
 /* {{{ php_zendump_init_globals
- */
-/* Uncomment this function if you have INI entries
-static void php_zendump_init_globals(zend_zendump_globals *zendump_globals)
-{
-	zendump_globals->global_value = 0;
-	zendump_globals->global_string = NULL;
-}
 */
+static void php_zendump_init_globals()
+{
+	ZENDUMP_G(enable_trace) = 0;
+	ZENDUMP_G(global_value) = 0;
+	ZENDUMP_G(global_string) = NULL;
+}
 /* }}} */
 
 /* {{{ PHP_MINIT_FUNCTION
  */
 PHP_MINIT_FUNCTION(zendump)
 {
-	/* If you have INI entries, uncomment these lines
+	php_zendump_init_globals();
+
 	REGISTER_INI_ENTRIES();
-	*/
+
+	if (ZENDUMP_G(enable_trace))
+	{
+		ZENDUMP_G(origin_execute) = zend_execute_ex;
+		zend_execute_ex = zendump_execute;
+	}
+
 	return SUCCESS;
 }
 /* }}} */
@@ -506,9 +517,17 @@ PHP_MINIT_FUNCTION(zendump)
  */
 PHP_MSHUTDOWN_FUNCTION(zendump)
 {
-	/* uncomment this line if you have INI entries
+	if (ZENDUMP_G(enable_trace))
+	{
+		if (zend_execute_ex == zendump_execute && ZENDUMP_G(origin_execute) != NULL)
+		{
+			zend_execute_ex = ZENDUMP_G(origin_execute);
+			ZENDUMP_G(origin_execute) = NULL;
+		}
+	}
+
 	UNREGISTER_INI_ENTRIES();
-	*/
+
 	return SUCCESS;
 }
 /* }}} */
@@ -542,9 +561,7 @@ PHP_MINFO_FUNCTION(zendump)
 	php_info_print_table_header(2, "zendump support", "enabled");
 	php_info_print_table_end();
 
-	/* Remove comments if you have entries in php.ini
 	DISPLAY_INI_ENTRIES();
-	*/
 }
 /* }}} */
 

@@ -59,5 +59,5 @@ if test "$PHP_ZENDUMP" != "no"; then
   dnl
   dnl PHP_SUBST(ZENDUMP_SHARED_LIBADD)
 
-  PHP_NEW_EXTENSION(zendump, zendump.c function_dump.c class_dump.c utility.c, $ext_shared,, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1)
+  PHP_NEW_EXTENSION(zendump, zendump.c function_dump.c class_dump.c utility.c trace.c, $ext_shared,, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1)
 fi

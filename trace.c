@@ -27,14 +27,29 @@
 #include "ext/standard/info.h"
 #include "php_zendump.h"
 
-size_t zendump_errorf(const char *format, ...)
+ZEND_DECLARE_MODULE_GLOBALS(zendump)
+
+void zendump_execute(zend_execute_data *ex)
 {
-  va_list args;
-  size_t ret;
-
-  va_start(args, format);
-  ret = vfprintf(stderr, format, args);
-  va_end(args);
-
-  return ret;
+    if(ex && ex->func && ex->func->common.function_name)
+    {
+        zend_string *name = ex->func->common.function_name;
+        zend_string *file = NULL;
+        if(ZEND_USER_CODE(ex->func->common.type))
+        {
+            file = ex->func->op_array.filename;
+        }
+        if(file)
+        {
+            zendump_errorf("%-30s%s:%d\n", ZSTR_VAL(name), file ? ZSTR_VAL(file) : "", ex->func->op_array.line_start);
+        }
+        else
+        {
+            zendump_errorf("%s\n", ZSTR_VAL(name));
+        }
+    }
+    if(ZENDUMP_G(origin_execute))
+    {
+        ZENDUMP_G(origin_execute)(ex);
+    }
 }

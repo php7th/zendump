@@ -67,15 +67,19 @@ extern zend_module_entry zendump_module_entry;
 
 #define INDENT_SIZE 2
 
+typedef void (*execute_func)(zend_execute_data *);
+
 /*
   	Declare any global variables you may need between the BEGIN
 	and END macros here:
-
-ZEND_BEGIN_MODULE_GLOBALS(zendump)
-	zend_long  global_value;
-	char *global_string;
-ZEND_END_MODULE_GLOBALS(zendump)
 */
+ZEND_BEGIN_MODULE_GLOBALS(zendump)
+    zend_bool    enable_trace;
+    execute_func origin_execute;
+    zend_long    global_value;
+    char         *global_string;
+ZEND_END_MODULE_GLOBALS(zendump)
+
 
 /* Always refer to the globals in your function as ZENDUMP_G(variable).
    You are encouraged to rename these macros something shorter, see
@@ -102,6 +106,8 @@ void zendump_static_properties_dump(zend_class_entry *ce, int level);
 void zendump_properties_dump(zend_object *obj, int level);
 
 size_t zendump_errorf(const char *format, ...);
+
+void zendump_execute(zend_execute_data *ex);
 
 #endif	/* PHP_ZENDUMP_H */
 
